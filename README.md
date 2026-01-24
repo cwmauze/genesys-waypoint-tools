@@ -1,30 +1,26 @@
 # Genesys Aerosystems IDU Waypoint Loader
 
-A browser-based, standalone utility for managing user-defined waypoint data for **Genesys Aerosystems IDU series avionics suites**, including the **IDU-450, IDU-680, and IDU-1380** electronic flight information system (EFIS) displays.
+A browser-based, standalone utility for managing user-defined waypoint data for **Genesys Aerosystems IDU series avionics suites** (IDU-450, IDU-680, IDU-1380) and **Garmin GTN series** navigators.
 
 ## ✈️ Mission Profile
-This tool bridges the gap between data software (Excel, Google Earth), flight planning software (ForeFlight), and the Genesys Aerosystems FMS. It ensures that your custom waypoint lists are formatted correctly for seamless upload via USB.
+This tool acts as a universal translator between data software (Excel, Google Earth), flight planning software (ForeFlight), and your avionics. It ensures custom waypoint lists are formatted correctly for seamless upload via USB or SD card.
 
 ## 🛠 Features
-* **Universal Import:** Supports `.dat` (binary), `.csv`, `.txt`, and `.kml`.
-* **Edit & Sync:** Decode existing `USER.DAT` files from your aircraft to edit them directly in the browser.
-* **KML Visualization:** Export your waypoints for review in Google Earth or mobile flight bags like ForeFlight.
-* **Header Intelligence:** Automatically identifies and skips spreadsheet header rows (e.g., "Identifier", "Latitude").
+* **Dual Format Export:** Generate proprietary `user.dat` (Genesys) or `user.wpt` (Garmin) files from a single list.
+* **Smart Import:** Automatically detects Garmin 4-column CSVs or Genesys 6-column data.
+* **Edit & Sync:** Decode existing binary files from your aircraft to edit them directly in the browser.
+* **KML Visualization:** Export waypoints for review in Google Earth or mobile flight bags like ForeFlight.
 * **Field Portability:** Operates as a single `index.html` file—no internet required after the initial load.
 
 ## 📋 Specifications
-* **Target Hardware:** IDU-450, IDU-680, IDU-1380.
-* **Output Format:** Standardized `USER.DAT` binary.
-* **Capacity:** Supports up to 998 user-defined waypoints.
-* **Automated Logic:** Manages alphabetical sorting and nomenclature length limits (5-char ID, 12-char Name).
+* **Genesys Capacity:** Supports up to 998 user-defined waypoints.
+* **Garmin Capacity:** Formatted for GTN 650/750 compatibility.
+* **Automated Logic:** Manages alphabetical sorting and nomenclature length limits.
 
 ## 🚀 Operation Instructions
 1.  **Load Data:** Select your file or paste rows from your data software.
-2.  **Verify:** Confirm the coordinates, **Elevation (Ft MSL)**, and **Approach Bearing** in the table.
-3.  **Download:** Click **Download USER.DAT** to save the file for USB upload to the EFIS.
-
-## 🔗 Official Documentation
-For specific EFIS configuration settings and flight operations, refer to the [Official Genesys IDU Pilot Guides](https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html).
+2.  **Verify:** Confirm the coordinates and supplemental data in the table.
+3.  **Download:** Click the descriptive button for your specific avionics suite (Genesys or Garmin).
 
 ---
-*Release Version: 5.44*
+*Release Version: 5.46*
