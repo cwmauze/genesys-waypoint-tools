@@ -3,30 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genesys Waypoint Command Center</title>
+    <title>Genesys Waypoint Loader</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: #f0f2f5; color: #1c1e21; }
         .container { max-width: 950px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         h2 { margin-top: 0; color: #1a73e8; border-bottom: 2px solid #eef0f2; padding-bottom: 10px; }
-        p { color: #606770; font-size: 14px; }
+        .instructions { background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 5px solid #1a73e8; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; table-layout: fixed; }
-        th, td { border: 1px solid #dadde1; padding: 8px; text-align: left; overflow: hidden; }
+        th, td { border: 1px solid #dadde1; padding: 8px; text-align: left; }
         th { background-color: #f5f6f7; font-weight: 600; }
         input { width: 95%; padding: 6px; border: 1px solid #ccd0d5; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
-        input:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+        .bulk-box { width: 100%; height: 100px; padding: 10px; border: 1px solid #ccd0d5; border-radius: 6px; font-family: monospace; font-size: 12px; box-sizing: border-box; margin-bottom: 10px; }
         .btn-container { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
-        .btn { background: #1a73e8; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        .btn { background: #1a73e8; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .btn:hover { background: #1557b0; }
         .btn-secondary { background: #e4e6eb; color: #050505; }
-        .btn-secondary:hover { background: #d8dadf; }
         .footer { margin-top: 30px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid #ebedf0; padding-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Genesys Waypoint Export</h2>
-    <p>Enter flight data below. This tool implements the <b>Double-Shift</b> logic: data for <i>this</i> waypoint is stored in the <i>next</i> binary record.</p>
+    <h2>Genesys Waypoint Loader</h2>
+    
+    <div class="instructions">
+        <strong>How to use:</strong><br>
+        1. Copy your waypoint data from Excel/Google Sheets (ID, Name, Lat, Lon, Elev, Bearing).<br>
+        2. Paste it into the "Bulk Import" box below and click <strong>"Load Waypoints"</strong>.<br>
+        3. Click <strong>"Download USER.DAT"</strong> and save the file to your aircraft upload card.
+    </div>
+
+    <div id="importSection">
+        <label style="font-size: 13px; font-weight: 600;">Bulk Import (Paste from Spreadsheet):</label>
+        <textarea id="bulkInput" class="bulk-box" placeholder="Example: KTRK  TRUCKEE  39.32  -120.13  5901  0"></textarea>
+        <button class="btn btn-secondary" onclick="processBulk()">Load Waypoints</button>
+    </div>
     
     <table id="wpTable">
         <thead>
@@ -40,40 +51,52 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td><input type="text" value="TESTA"></td>
-                <td><input type="text" value="TEST ELEV"></td>
-                <td><input type="number" step="any" value="35.44444"></td>
-                <td><input type="number" step="any" value="-85.44444"></td>
-                <td><input type="number" value="440"></td>
-                <td><input type="number" value="0"></td>
-            </tr>
-            <tr>
-                <td><input type="text" value="TESTB"></td>
-                <td><input type="text" value="TEST BRG"></td>
-                <td><input type="number" step="any" value="35.55555"></td>
-                <td><input type="number" step="any" value="-85.55555"></td>
-                <td><input type="number" value="500"></td>
-                <td><input type="number" value="123"></td>
-            </tr>
-        </tbody>
+            </tbody>
     </table>
 
     <div class="btn-container">
-        <button class="btn btn-secondary" onclick="addRow()">+ Add Row</button>
+        <button class="btn btn-secondary" onclick="addRow()">+ Add Single Row</button>
         <button class="btn" onclick="exportData()">Download USER.DAT</button>
     </div>
 
     <div class="footer">
-        Genesys IDU-450 Waypoint Module | v5.23 | Production Engine
+        Aviation Data Systems | Genesys IDU-450 Compatible | v5.24
     </div>
 </div>
 
 <script>
 /**
- * Genesys Web Logic v5.23
- * Corrects Record Count to include the Dummy Record
+ * Genesys Web Logic v5.24
+ * Pilots-first UI with Bulk Import functionality
  */
+
+function processBulk() {
+    const rawData = document.getElementById('bulkInput').value.trim();
+    if (!rawData) return;
+
+    const rows = rawData.split('\n');
+    const tbody = document.getElementById('wpTable').getElementsByTagName('tbody')[0];
+    
+    // Optional: Clear existing rows before loading bulk
+    tbody.innerHTML = '';
+
+    rows.forEach(line => {
+        // Split by Tab (from Excel) or multiple spaces
+        const cols = line.split(/\t| {2,}/);
+        if (cols.length >= 2) {
+            const newRow = tbody.insertRow();
+            for (let i = 0; i < 6; i++) {
+                let cell = newRow.insertCell(i);
+                let input = document.createElement('input');
+                input.type = (i > 1) ? 'number' : 'text';
+                if (i === 2 || i === 3) input.step = 'any';
+                input.value = cols[i] ? cols[i].trim() : (i > 3 ? 0 : '');
+                cell.appendChild(input);
+            }
+        }
+    });
+    document.getElementById('bulkInput').value = '';
+}
 
 function addRow() {
     const table = document.getElementById('wpTable').getElementsByTagName('tbody')[0];
@@ -88,8 +111,6 @@ function addRow() {
 }
 
 function exportData() {
-    console.log("Starting binary export v5.23...");
-    
     try {
         const table = document.getElementById('wpTable');
         const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
@@ -97,7 +118,7 @@ function exportData() {
 
         for (let row of rows) {
             let inputs = row.getElementsByTagName('input');
-            if (inputs[0].value.trim() !== "") {
+            if (inputs[0] && inputs[0].value.trim() !== "") {
                 waypoints.push({
                     id: inputs[0].value.substring(0, 5).toUpperCase(),
                     name: (inputs[1].value || inputs[0].value).substring(0, 12).toUpperCase(),
@@ -110,11 +131,10 @@ function exportData() {
         }
 
         if (waypoints.length === 0) {
-            alert("No data to export.");
+            alert("Please load or enter waypoint data first.");
             return;
         }
 
-        // 1. Mandatory Sort
         waypoints.sort((a, b) => a.id.localeCompare(b.id));
 
         const RECORD_SIZE = 88;
@@ -123,26 +143,20 @@ function exportData() {
         let buffer = new ArrayBuffer(TOTAL_FILE_SIZE);
         let view = new DataView(buffer);
 
-        // 2. Header: Count MUST be waypoints + 1
-        view.setUint32(0, waypoints.length + 1, true);
+        view.setUint32(0, waypoints.length + 1, true); // Dummy record included
         
         const headerHex = "0000000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
         for (let i = 4; i < HEADER_SIZE; i++) {
             view.setUint8(i, parseInt(headerHex.substr(i * 2, 2), 16));
         }
 
-        // 3. Main Waypoint Loop
         waypoints.forEach((wp, i) => {
             let offset = HEADER_SIZE + (i * RECORD_SIZE);
-            
-            // "Double-Shift": Write data from PREVIOUS waypoint into THIS record
             if (i > 0) {
                 let prevWp = waypoints[i-1];
                 view.setUint32(offset + 0, Math.round(prevWp.elev / 10) * 10, true);
                 view.setUint16(offset + 16, prevWp.bearing, true);
             }
-
-            // Standard Identity and Coordinates
             for (let j = 0; j < wp.id.length; j++) view.setUint8(offset + 24 + j, wp.id.charCodeAt(j));
             for (let j = 0; j < wp.name.length; j++) view.setUint8(offset + 33 + j, wp.name.charCodeAt(j));
             view.setUint8(offset + 64, 0x0A);
@@ -150,14 +164,12 @@ function exportData() {
             view.setFloat64(offset + 80, wp.lon, true);
         });
 
-        // 4. Final Dummy Record: Catches data for the LAST waypoint
         let lastWp = waypoints[waypoints.length - 1];
         let dummyOffset = HEADER_SIZE + (waypoints.length * RECORD_SIZE);
         view.setUint32(dummyOffset + 0, Math.round(lastWp.elev / 10) * 10, true);
         view.setUint16(dummyOffset + 16, lastWp.bearing, true);
         view.setUint8(dummyOffset + 64, 0x0A);
 
-        // 5. CRC Checksum
         let crc = 0xFFFFFFFF;
         let cTable = [];
         for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1)); cTable[n]=c; }
@@ -167,24 +179,8 @@ function exportData() {
         }
         view.setUint32(TOTAL_FILE_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
 
-        // 6. Download
         const blob = new Blob([buffer], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "user.dat";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        console.log("Download triggered for " + (waypoints.length + 1) + " binary records.");
-    } catch (e) {
-        console.error("Export Error:", e);
-        alert("Export Error: " + e.message);
-    }
-}
-</script>
-
-</body>
-</html>
+        a.download = "user
