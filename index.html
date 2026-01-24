@@ -85,7 +85,7 @@
     </div>
 
     <div class="footer">
-        Aviation Data Systems | Logic v5.35 | KML Support Enabled
+        Aviation Data Systems | Logic v5.36 | Full Restoration
     </div>
 </div>
 
@@ -115,7 +115,6 @@ function processData() {
         const file = fileInput.files[0];
         const reader = new FileReader();
         const ext = file.name.toLowerCase().split('.').pop();
-
         if (ext === 'dat') {
             reader.onload = (e) => decodeBinary(e.target.result);
             reader.readAsArrayBuffer(file);
@@ -128,9 +127,7 @@ function processData() {
         }
     } else if (bulkInput) {
         parseText(bulkInput);
-    } else {
-        alert("Please select a file or paste data.");
-    }
+    } else { alert("Please select a file or paste data."); }
 }
 
 function parseKML(xmlText) {
@@ -139,12 +136,10 @@ function parseKML(xmlText) {
         const xmlDoc = parser.parseFromString(xmlText, "text/xml");
         const placemarks = xmlDoc.getElementsByTagName("Placemark");
         let waypoints = [];
-
         for (let i = 0; i < placemarks.length; i++) {
             const pm = placemarks[i];
             const name = pm.getElementsByTagName("name")[0]?.textContent || "WP" + i;
             const coordsNode = pm.getElementsByTagName("coordinates")[0];
-            
             if (coordsNode) {
                 const parts = coordsNode.textContent.trim().split(",");
                 if (parts.length >= 2) {
@@ -165,36 +160,19 @@ function parseKML(xmlText) {
 
 function exportKML() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
-    let kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>Genesys Export</name>`;
-
+    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>Genesys Export</name>`;
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         if (inputs[0].value.trim()) {
-            kml += `
-    <Placemark>
-      <name>${inputs[0].value}</name>
-      <description>${inputs[1].value}</description>
-      <Point>
-        <coordinates>${inputs[3].value},${inputs[2].value},${inputs[4].value}</coordinates>
-      </Point>
-    </Placemark>`;
+            kml += `\n    <Placemark>\n      <name>${inputs[0].value}</name>\n      <description>${inputs[1].value}</description>\n      <Point>\n        <coordinates>${inputs[3].value},${inputs[2].value},${inputs[4].value}</coordinates>\n      </Point>\n    </Placemark>`;
         }
     });
-
-    kml += `
-  </Document>
-</kml>`;
-
+    kml += `\n  </Document>\n</kml>`;
     const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = "waypoints.kml";
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = "waypoints.kml";
+    a.click(); URL.revokeObjectURL(url);
 }
 
 function decodeBinary(buffer) {
