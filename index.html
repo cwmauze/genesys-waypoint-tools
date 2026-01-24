@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genesys Waypoint Loader</title>
+    <title>Genesys IDU Waypoint Loader</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: #f0f2f5; color: #1c1e21; }
         .container { max-width: 950px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -13,30 +13,46 @@
         th, td { border: 1px solid #dadde1; padding: 8px; text-align: left; }
         th { background-color: #f5f6f7; font-weight: 600; }
         input { width: 95%; padding: 6px; border: 1px solid #ccd0d5; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
-        .bulk-box { width: 100%; height: 100px; padding: 10px; border: 1px solid #ccd0d5; border-radius: 6px; font-family: monospace; font-size: 12px; box-sizing: border-box; margin-bottom: 10px; }
+        .bulk-box { width: 100%; height: 80px; padding: 10px; border: 1px solid #ccd0d5; border-radius: 6px; font-family: monospace; font-size: 12px; box-sizing: border-box; margin-bottom: 10px; }
+        .import-controls { display: flex; align-items: flex-end; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .control-group { flex: 1; min-width: 250px; }
         .btn-container { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
         .btn { background: #1a73e8; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .btn:hover { background: #1557b0; }
         .btn-secondary { background: #e4e6eb; color: #050505; }
+        .btn-secondary:hover { background: #d8dadf; }
+        .btn-danger { background: #fa3e3e; color: white; }
+        .btn-danger:hover { background: #be2e2e; }
         .footer { margin-top: 30px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid #ebedf0; padding-top: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Genesys Waypoint Loader</h2>
+    <h2>Genesys IDU Waypoint Loader</h2>
     
     <div class="instructions">
         <strong>How to use:</strong><br>
-        1. Copy your waypoint rows from your Master Spreadsheet.<br>
-        2. Paste them into the <strong>Bulk Import</strong> box and click <strong>"Load Waypoints"</strong>.<br>
-        3. Verify the table data and click <strong>"Download USER.DAT"</strong>.
+        1. Select a file (.csv or .txt) or paste rows from your master spreadsheet.<br>
+        2. Click <strong>"Load Data"</strong> to populate the table.<br>
+        3. Verify the waypoints and click <strong>"Download USER.DAT"</strong>.
     </div>
 
-    <div id="importSection">
-        <label style="font-size: 13px; font-weight: 600;">Bulk Import (Paste from Spreadsheet):</label>
-        <textarea id="bulkInput" class="bulk-box" placeholder="Paste spreadsheet rows here..."></textarea>
-        <button class="btn btn-secondary" onclick="processBulk()">Load Waypoints</button>
+    <div class="import-controls">
+        <div class="control-group">
+            <label>Option A: Upload File (.csv, .txt)</label>
+            <input type="file" id="fileInput" accept=".csv,.txt" style="border:none; padding: 5px 0;">
+        </div>
+        <div class="control-group">
+            <label>Option B: Bulk Paste</label>
+            <textarea id="bulkInput" class="bulk-box" placeholder="Paste rows here..."></textarea>
+        </div>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <button class="btn btn-secondary" onclick="processData()">Load Data</button>
+        <button class="btn btn-danger" onclick="removeAll()">Remove All</button>
     </div>
     
     <table id="wpTable">
@@ -60,52 +76,70 @@
     </div>
 
     <div class="footer">
-        Aviation Data Systems | v5.25 | Production Engine
+        Aviation Data Systems | Genesys IDU Compatible | v5.26
     </div>
 </div>
 
 <script>
 /**
- * Genesys Web Logic v5.25
- * Corrects the tbody reference and improves parser reliability
+ * Genesys IDU Waypoint Loader v5.26
+ * Features: File Upload, Bulk Paste, and Slate Clear
  */
 
-function processBulk() {
-    const rawData = document.getElementById('bulkInput').value.trim();
-    if (!rawData) return;
+function removeAll() {
+    if (confirm("Are you sure you want to clear all waypoints?")) {
+        document.getElementById('wpTable').getElementsByTagName('tbody')[0].innerHTML = '';
+        document.getElementById('bulkInput').value = '';
+        document.getElementById('fileInput').value = '';
+    }
+}
 
-    // Get the first tbody element
+function processData() {
+    const fileInput = document.getElementById('fileInput');
+    const bulkInput = document.getElementById('bulkInput').value.trim();
+
+    if (fileInput.files.length > 0) {
+        // Handle File Upload
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            parseAndPopulate(e.target.result);
+        };
+        reader.readAsText(file);
+    } else if (bulkInput) {
+        // Handle Bulk Paste
+        parseAndPopulate(bulkInput);
+    } else {
+        alert("Please select a file or paste data first.");
+    }
+}
+
+function parseAndPopulate(text) {
     const tbody = document.getElementById('wpTable').getElementsByTagName('tbody')[0];
-    tbody.innerHTML = '';
+    tbody.innerHTML = ''; // Clear slate
 
-    const lines = rawData.split(/\r?\n/);
-
+    const lines = text.split(/\r?\n/);
     lines.forEach(line => {
-        // Handle Tabs (from Excel) or commas
-        const cols = line.split(/\t|,/);
-        
-        if (cols[0].trim() !== "") {
+        const cols = line.split(/\t|,| {2,}/); // Split by Tab, Comma, or multi-space
+        if (cols[0] && cols[0].trim() !== "") {
             const newRow = tbody.insertRow();
             for (let i = 0; i < 6; i++) {
                 let cell = newRow.insertCell(i);
                 let input = document.createElement('input');
-                
-                // Set data types
                 input.type = (i > 1) ? 'number' : 'text';
                 if (i === 2 || i === 3) input.step = 'any';
                 
-                // Clean and fill data
                 let val = cols[i] ? cols[i].trim() : "";
-                if ((i === 4 || i === 5) && val === "") val = "0"; // Default elevation/bearing to 0
+                if ((i === 4 || i === 5) && val === "") val = "0";
                 
                 input.value = val;
                 cell.appendChild(input);
             }
         }
     });
-    
-    // Clear the box for the next paste
+    // Reset inputs
     document.getElementById('bulkInput').value = '';
+    document.getElementById('fileInput').value = '';
 }
 
 function addRow() {
@@ -122,8 +156,7 @@ function addRow() {
 
 function exportData() {
     try {
-        const table = document.getElementById('wpTable');
-        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+        const rows = document.getElementById('wpTable').getElementsByTagName('tbody')[0].getElementsByTagName('tr');
         let waypoints = [];
 
         for (let row of rows) {
@@ -140,25 +173,16 @@ function exportData() {
             }
         }
 
-        if (waypoints.length === 0) {
-            alert("Table is empty. Please load data first.");
-            return;
-        }
-
+        if (waypoints.length === 0) { alert("Table is empty."); return; }
         waypoints.sort((a, b) => a.id.localeCompare(b.id));
 
-        const RECORD_SIZE = 88;
-        const HEADER_SIZE = 72;
-        const TOTAL_FILE_SIZE = 88016; 
+        const RECORD_SIZE = 88, HEADER_SIZE = 72, TOTAL_FILE_SIZE = 88016; 
         let buffer = new ArrayBuffer(TOTAL_FILE_SIZE);
         let view = new DataView(buffer);
 
         view.setUint32(0, waypoints.length + 1, true);
-        
         const headerHex = "0000000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
-        for (let i = 4; i < HEADER_SIZE; i++) {
-            view.setUint8(i, parseInt(headerHex.substr(i * 2, 2), 16));
-        }
+        for (let i = 4; i < HEADER_SIZE; i++) view.setUint8(i, parseInt(headerHex.substr(i * 2, 2), 16));
 
         waypoints.forEach((wp, i) => {
             let offset = HEADER_SIZE + (i * RECORD_SIZE);
@@ -180,27 +204,19 @@ function exportData() {
         view.setUint16(dummyOffset + 16, lastWp.bearing, true);
         view.setUint8(dummyOffset + 64, 0x0A);
 
-        let crc = 0xFFFFFFFF;
-        let cTable = [];
+        let crc = 0xFFFFFFFF, cTable = [];
         for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1)); cTable[n]=c; }
         const bytes = new Uint8Array(buffer);
-        for (let i = 0; i < TOTAL_FILE_SIZE - 8; i++) {
-            crc = (crc >>> 8) ^ cTable[(crc ^ bytes[i]) & 0xFF];
-        }
+        for (let i = 0; i < TOTAL_FILE_SIZE - 8; i++) crc = (crc >>> 8) ^ cTable[(crc ^ bytes[i]) & 0xFF];
         view.setUint32(TOTAL_FILE_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
 
         const blob = new Blob([buffer], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url;
-        a.download = "user.dat";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (e) {
-        alert("Export Error: " + e.message);
-    }
+        a.href = url; a.download = "user.dat";
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (e) { alert("Export Error: " + e.message); }
 }
 </script>
 
