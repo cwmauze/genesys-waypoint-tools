@@ -5,19 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Genesys IDU Waypoint Loader</title>
     <style>
+        /* Defaulting to Dark Theme variables */
         :root {
-            --bg: #f0f2f5; --card: #ffffff; --text: #1c1e21; --border: #dadde1;
-            --primary: #1a73e8; --secondary: #e4e6eb; --danger: #fa3e3e;
-        }
-        [data-theme="dark"] {
             --bg: #18191a; --card: #242526; --text: #e4e6eb; --border: #3e4042;
             --primary: #478df5; --secondary: #3a3b3c; --danger: #fb6161;
+        }
+        /* Light Theme variables triggered by data-theme="light" */
+        [data-theme="light"] {
+            --bg: #f0f2f5; --card: #ffffff; --text: #1c1e21; --border: #dadde1;
+            --primary: #1a73e8; --secondary: #e4e6eb; --danger: #fa3e3e;
         }
         body { font-family: -apple-system, sans-serif; margin: 20px; background: var(--bg); color: var(--text); transition: background 0.3s; }
         .container { max-width: 950px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
         h2 { margin: 0; color: var(--primary); }
-        .instructions { background: rgba(26, 115, 232, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
+        .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; table-layout: fixed; }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
         th { background-color: var(--secondary); font-weight: 600; font-size: 12px; }
@@ -36,7 +38,7 @@
 <div class="container">
     <div class="header-row">
         <h2>Genesys IDU Waypoint Loader</h2>
-        <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
+        <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
     </div>
     
     <div class="instructions">
@@ -85,7 +87,7 @@
     </div>
 
     <div class="footer">
-        Aviation Data Systems | Logic v5.36 | Full Restoration
+        Aviation Data Systems | Logic v5.37 | Default Dark Mode
     </div>
 </div>
 
@@ -95,9 +97,14 @@ const HEADER_SIZE = 72;
 
 function toggleTheme() {
     const body = document.body;
-    const isDark = body.getAttribute('data-theme') === 'dark';
-    body.setAttribute('data-theme', isDark ? 'light' : 'dark');
-    document.getElementById('themeBtn').innerText = isDark ? "🌙 Dark Mode" : "☀️ Light Mode";
+    const btn = document.getElementById('themeBtn');
+    if (body.getAttribute('data-theme') === 'light') {
+        body.removeAttribute('data-theme');
+        btn.innerText = "☀️ Light Mode";
+    } else {
+        body.setAttribute('data-theme', 'light');
+        btn.innerText = "🌙 Dark Mode";
+    }
 }
 
 function removeAll() {
