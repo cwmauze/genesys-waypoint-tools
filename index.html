@@ -45,9 +45,9 @@
     
     <div class="instructions">
         <strong>Pre-Flight Data Prep:</strong><br>
-        1. Paste rows from data software (Excel/Google Earth) or select a file.<br>
+        1. Paste rows from data software or select a file (.dat, .csv, .kml).<br>
         2. Click <strong>"Load Data"</strong>. Coordinates (DD, DDM, or DMS) will automatically normalize.<br>
-        3. Click the appropriate button to export for your avionics or dispatch system.<br>
+        3. Use the descriptive download buttons for your specific aircraft or dispatch system.<br>
         <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
             <strong>References:</strong> 
             <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Genesys IDU Guides</a> | 
@@ -92,7 +92,7 @@
     <button class="btn btn-secondary" style="color:var(--text)" onclick="addRow()">+ Add Single Row</button>
 
     <div class="footer">
-        Version 5.52 | Debugging Active | Genesys, Garmin, Complete Flight
+        Version 5.53 | Fixed Binary Import | Robust Coordinate Parsing | Genesys, Garmin, Complete Flight
     </div>
 </div>
 
@@ -115,32 +115,20 @@ function toggleTheme() {
 
 function removeAll() { if (confirm("Clear all data?")) { document.querySelector('#wpTable tbody').innerHTML = ''; } }
 
-// v5.52 Bulletproof Coordinate Parser
 function parseCoordinate(input) {
-    if (input === null || input === undefined) return 0;
+    if (!input || input.toString().trim() === "") return 0;
     let str = input.toString().trim().toUpperCase();
-    if (str === "") return 0;
-    
     let multiplier = (/[SW-]/.test(str)) ? -1 : 1;
     let clean = str.replace(/[^0-9. ]/g, ' ').trim();
     let parts = clean.split(/\s+/).filter(p => p.length > 0);
-
     let dd = 0;
-    try {
-        if (parts.length === 1) {
-            dd = parseFloat(parts[0]);
-        } else if (parts.length === 2) {
-            dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60);
-        } else if (parts.length >= 3) {
-            dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60) + (parseFloat(parts[2]) / 3600);
-        }
-    } catch (e) { return 0; }
-    
-    return isNaN(dd) ? 0 : (dd * multiplier).toFixed(6);
+    if (parts.length === 1) dd = parseFloat(parts[0]);
+    else if (parts.length === 2) dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60);
+    else if (parts.length >= 3) dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60) + (parseFloat(parts[2]) / 3600);
+    return (dd * multiplier).toFixed(6);
 }
 
 function processData() {
-    console.log("ProcessData Triggered");
     const fileInput = document.getElementById('fileInput');
     const bulkInput = document.getElementById('bulkInput').value.trim();
     
@@ -150,59 +138,62 @@ function processData() {
         const ext = file.name.toLowerCase().split('.').pop();
         
         reader.onload = (e) => {
-            console.log("File loaded, extension:", ext);
             if (ext === 'dat') decodeBinary(e.target.result);
             else if (ext === 'kml') parseKML(e.target.result);
             else parseText(e.target.result);
         };
-        
-        reader.onerror = () => alert("Error reading file.");
 
         if (ext === 'dat') reader.readAsArrayBuffer(file);
         else reader.readAsText(file);
     } else if (bulkInput) {
-        console.log("Pasted text detected");
         parseText(bulkInput);
     } else {
         alert("Please select a file OR paste data first.");
     }
 }
 
+function decodeBinary(buffer) {
+    try {
+        const view = new DataView(buffer);
+        const totalWaypoints = view.getUint32(0, true) - 1; 
+        let waypoints = [];
+        for (let i = 0; i < totalWaypoints; i++) {
+            let offset = HEADER_SIZE + (i * RECORD_SIZE);
+            let nextOffset = offset + RECORD_SIZE;
+            let elev = view.getUint32(nextOffset + 0, true);
+            let brg = view.getUint16(nextOffset + 16, true);
+            let id = "", name = "";
+            for (let j = 0; j < 5; j++) {
+                let char = view.getUint8(offset + 24 + j);
+                if (char > 31) id += String.fromCharCode(char);
+            }
+            for (let j = 0; j < 12; j++) {
+                let char = view.getUint8(offset + 33 + j);
+                if (char > 31) name += String.fromCharCode(char);
+            }
+            waypoints.push({
+                id: id.trim(),
+                name: name.trim(),
+                lat: view.getFloat64(offset + 72, true).toFixed(6),
+                lon: view.getFloat64(offset + 80, true).toFixed(6),
+                elev: elev,
+                brg: brg
+            });
+        }
+        populateTable(waypoints);
+    } catch (e) { alert("Binary Error: " + e.message); }
+}
+
 function parseText(text) {
-    console.log("Parsing text data...");
     const lines = text.split(/\r?\n/);
     let waypoints = [];
-    
     lines.forEach((line, index) => {
-        if (!line.trim()) return;
-        
         const cols = line.split(/[,\t]/).map(c => c.trim().replace(/"/g, ''));
         if (!cols[0]) return;
-        
-        // Skip header if first row and col 3 isn't numeric-ish
-        if (index === 0 && isNaN(parseFloat(cols[2])) && !/[0-9]/.test(cols[2])) {
-            console.log("Skipping header row:", line);
-            return;
-        }
-
-        let lat = parseCoordinate(cols[2]);
-        let lon = parseCoordinate(cols[3]);
-        
-        waypoints.push({
-            id: cols[0],
-            name: cols[1] || "",
-            lat: lat,
-            lon: lon,
-            elev: cols[4] || 0,
-            brg: cols[5] || 0
-        });
+        if (index === 0 && isNaN(parseFloat(cols[2])) && !/[0-9]/.test(cols[2])) return;
+        waypoints.push({ id: cols[0], name: cols[1] || "", lat: parseCoordinate(cols[2]), lon: parseCoordinate(cols[3]), elev: cols[4] || 0, brg: cols[5] || 0 });
     });
-    
-    if (waypoints.length > 0) {
-        populateTable(waypoints);
-    } else {
-        alert("No valid waypoints found. Check your formatting.");
-    }
+    populateTable(waypoints);
 }
 
 function populateTable(waypoints) {
@@ -228,7 +219,7 @@ function addRow() {
     }
 }
 
-// Export functions... (keeping same as v5.51)
+// Exports
 function exportCompleteFlight() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
     let csv = "Identifier,Name,Latitude,Longitude\n";
@@ -236,11 +227,7 @@ function exportCompleteFlight() {
         const inputs = row.querySelectorAll('input');
         if (inputs[0].value.trim()) csv += `${inputs[0].value},${inputs[1].value},${inputs[2].value},${inputs[3].value}\n`;
     });
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "Complete_Flight_Identifiers.csv";
-    a.click();
+    downloadFile(csv, "Complete_Flight_Identifiers.csv", "text/csv");
 }
 
 function exportGarmin() {
@@ -251,11 +238,7 @@ function exportGarmin() {
         const id = inputs[0].value.trim().substring(0, 6).toUpperCase();
         if (id) csv += `${id},${inputs[1].value.substring(0, 25).toUpperCase()},${inputs[2].value},${inputs[3].value}\n`;
     });
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "user.wpt";
-    a.click();
+    downloadFile(csv, "user.wpt", "text/csv");
 }
 
 function exportData() {
@@ -303,10 +286,7 @@ function exportData() {
     for (let i = 0; i < TOTAL_SIZE - 8; i++) crc = (crc >>> 8) ^ cTable[(crc ^ bytes[i]) & 0xFF];
     view.setUint32(TOTAL_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
     const blob = new Blob([buffer], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "user.dat";
-    a.click();
+    downloadBlob(blob, "user.dat");
 }
 
 function exportKML() {
@@ -317,11 +297,20 @@ function exportKML() {
         if (inputs[0].value) kml += `\n<Placemark><name>${inputs[0].value}</name><Point><coordinates>${inputs[3].value},${inputs[2].value}</coordinates></Point></Placemark>`;
     });
     kml += `\n</Document></kml>`;
-    const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+    downloadFile(kml, "waypoints.kml", "application/vnd.google-earth.kml+xml");
+}
+
+function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type: type });
+    downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "waypoints.kml";
+    a.href = url; a.download = filename;
     a.click();
+    URL.revokeObjectURL(url);
 }
 </script>
 </body>
