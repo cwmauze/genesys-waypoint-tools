@@ -4,49 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Genesys Aerosystems IDU Waypoint Loader</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
             --bg: #18191a; --card: #242526; --text: #e4e6eb; --border: #3e4042;
             --primary: #478df5; --secondary: #3a3b3c; --danger: #fb6161;
             --success: #28a745; --garmin: #007cc3; --dispatch: #f39c12;
+            --earth: #2d81ff; --link: #8ab4f8;
         }
         [data-theme="light"] {
             --bg: #f0f2f5; --card: #ffffff; --text: #1c1e21; --border: #dadde1;
             --primary: #1a73e8; --secondary: #e4e6eb; --danger: #fa3e3e;
+            --link: #1a73e8;
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: var(--bg); color: var(--text); transition: background 0.3s; }
-        .container { max-width: 1150px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
-        h2 { margin: 0; color: var(--primary); }
+        .container { max-width: 1200px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
+        
+        .version-subtitle { font-size: 11px; color: #90949c; margin-top: 4px; display: block; font-weight: normal; }
+        
+        .header-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { margin: 0; color: var(--primary); line-height: 1; }
         .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; table-layout: fixed; }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
         th { background-color: var(--secondary); font-weight: 600; font-size: 12px; }
         input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: var(--card); color: var(--text); box-sizing: border-box; }
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: opacity 0.2s; text-align: center; color: white; display: inline-block; vertical-align: middle; }
-        .btn:hover { opacity: 0.85; }
+        
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: all 0.2s ease; text-align: center; color: white; display: inline-block; vertical-align: middle; }
+        .btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
         .btn span { display: block; font-size: 10px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
+        
         .btn-primary { background: var(--primary); }
         .btn-secondary { background: var(--secondary); color: var(--text); }
         .btn-danger { background: var(--danger); }
-        .footer { margin-top: 30px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid var(--border); padding-top: 15px; }
+        
+        .footer { margin-top: 40px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid var(--border); padding-top: 20px; line-height: 1.6; }
         .action-bar { background: var(--secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; }
-        a { color: var(--primary); text-decoration: none; }
+        
+        a { color: var(--link); text-decoration: none; font-weight: 500; }
+        a:visited { color: var(--link); opacity: 0.8; }
+        a:hover { text-decoration: underline; opacity: 1; }
+
         hr { border: 0; border-top: 1px solid var(--border); margin: 25px 0; }
+
+        /* Map Modal Styles */
+        #mapOverlay { display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; background: var(--card); z-index: 1000; border: 2px solid var(--primary); border-radius: 12px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+        #map { width: 100%; height: calc(100% - 50px); border-radius: 12px 12px 0 0; }
+        .map-header { padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; background: var(--secondary); color: var(--text); border-radius: 0 0 12px 12px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-row">
-        <h2>Genesys Aerosystems IDU Waypoint Loader</h2>
+        <div>
+            <h2>Genesys Aerosystems IDU Waypoint Loader</h2>
+            <span class="version-subtitle">Build v5.70</span>
+        </div>
         <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
     </div>
     
     <div class="instructions">
-        <strong>Workflow:</strong> 1. Add data (File or Paste) &rarr; 2. Click <strong>LOAD DATA</strong> &rarr; 3. Verify in table &rarr; 4. Export.
-        <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
+        <strong>Pre-Flight Data Prep:</strong><br>
+        1. Select a file (.dat, .csv, .wpt, .kml) OR paste rows from your data software into the bulk field.<br>
+        2. Click <strong>LOAD DATA</strong>. The parser automatically detects and normalizes <strong>Decimal Degrees (DD)</strong>, <strong>Degrees Decimal Minutes (DDM)</strong>, and <strong>Degrees Minutes Seconds (DMS)</strong>.<br>
+        3. Verify the information in the table and click the desired export button.<br>
+        <em>Note: Hardware-specific warnings will appear if your text must be shortened (truncated) for a specific system.</em>
+        <div style="font-size: 12px; margin-top: 8px;">
             <strong>References:</strong> 
             <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Genesys IDU Guides</a> | 
             <a href="https://support.garmin.com/en-US/?faq=3mcdU37gXi88ipwjJIxJo7" target="_blank">Garmin GTN Guide</a>
@@ -55,12 +80,12 @@
 
     <div style="display: flex; gap: 20px; margin-bottom: 10px; flex-wrap: wrap; align-items: flex-end;">
         <div style="flex: 1; min-width: 250px;">
-            <label>Option A: Load File (.dat, .csv, .kml)</label>
+            <label>Option A: Load File</label>
             <input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt">
         </div>
         <div style="flex: 2; min-width: 300px;">
             <label>Option B: Bulk Paste Rows</label>
-            <textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..."></textarea>
+            <textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Supports Decimal Degrees, Degrees Decimal Minutes, and Degrees Minutes Seconds..."></textarea>
         </div>
         <div>
             <button class="btn btn-primary" style="padding: 12px 25px;" onclick="processData()">LOAD DATA</button>
@@ -71,56 +96,112 @@
 
     <div class="action-bar">
         <span style="font-size: 12px; font-weight: bold; color: var(--primary); margin-right: 10px;">EXPORT:</span>
-        <button class="btn" onclick="exportData()" style="background-color: var(--success);">Download user.dat <span>GENESYS BINARY</span></button>
-        <button class="btn" onclick="exportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GTN</span></button>
+        <button class="btn" onclick="checkAndExportGenesys()" style="background-color: var(--success);">Download user.dat <span>GENESYS BINARY</span></button>
+        <button class="btn" onclick="checkAndExportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GTN</span></button>
         <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Download CSV <span>COMPLETE FLIGHT (EXP)</span></button>
-        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1;">Export KML <span>GOOGLE EARTH</span></button>
+        <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on Map <span>INSTANT VIEW</span></button>
+        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1;">Export KML <span>GOOGLE EARTH PRO</span></button>
         <div style="flex-grow: 1;"></div>
-        <button class="btn btn-danger" onclick="removeAll()">Clear Table</button>
+        <button class="btn btn-danger" onclick="removeAll()">CLEAR ALL DATA</button>
     </div>
     
     <table id="wpTable">
         <thead>
             <tr>
-                <th style="width: 13%;">Identifier</th>
-                <th style="width: 23%;">Name</th>
+                <th style="width: 15%;">Identifier</th>
+                <th style="width: 21%;">Name</th>
                 <th style="width: 15%;">Latitude</th>
                 <th style="width: 15%;">Longitude</th>
-                <th style="width: 17%;">Elevation (Ft MSL)</th>
-                <th style="width: 17%;">Approach Bearing</th>
+                <th style="width: 17%;">Elevation (Ft)</th>
+                <th style="width: 17%;">Bearing</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
 
-    <button class="btn btn-secondary" style="color:var(--text)" onclick="addRow()">+ Add Single Row</button>
+    <div style="display: flex; gap: 10px;">
+        <button class="btn btn-secondary" style="color:var(--text)" onclick="addRows(1)">+ Add 1 Row</button>
+        <button class="btn btn-secondary" style="color:var(--text)" onclick="addRows(5)">+ Add 5 Rows</button>
+        <button class="btn btn-secondary" style="color:var(--text)" onclick="addRows(10)">+ Add 10 Rows</button>
+    </div>
 
     <div class="footer">
-        Version 5.54 | UI Workflow Enhancement | Robust Binary & Text Import
+        <strong>Data Verification Notice:</strong> User-defined waypoint data must be verified against official aeronautical sources prior to use for navigation.<br>
+        Compatible with Genesys IDU-450/680/1380 & Garmin GTN Series Navigators.<br>
+        <a href="https://github.com/cwmauze/genesys-waypoint-tools/tree/main" target="_blank">Open Source Project Home</a>
     </div>
 </div>
+
+<div id="mapOverlay">
+    <div id="map"></div>
+    <div class="map-header">
+        <span>Quick Map Preview (WGS84)</span>
+        <button class="btn btn-danger" onclick="hideMap()" style="margin:0; padding:5px 15px;">Close Map</button>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 const RECORD_SIZE = 88;
 const HEADER_SIZE = 72;
 const MAX_GENESYS = 998;
+let leafletMap = null;
+let markerLayer = null;
 
 function toggleTheme() {
-    const body = document.body;
-    const btn = document.getElementById('themeBtn');
-    if (body.getAttribute('data-theme') === 'light') {
-        body.removeAttribute('data-theme');
-        btn.innerText = "☀️ Light Mode";
-    } else {
-        body.setAttribute('data-theme', 'light');
-        btn.innerText = "🌙 Dark Mode";
-    }
+    const b = document.body;
+    b.getAttribute('data-theme') === 'light' ? b.removeAttribute('data-theme') : b.setAttribute('data-theme', 'light');
 }
 
-function removeAll() { if (confirm("Clear all table data?")) { document.querySelector('#wpTable tbody').innerHTML = ''; } }
+function removeAll() { 
+    document.querySelector('#wpTable tbody').innerHTML = ''; 
+    document.getElementById('bulkInput').value = '';
+    document.getElementById('fileInput').value = '';
+}
+
+/* Mapping Logic */
+function showMap() {
+    const rows = document.querySelectorAll('#wpTable tbody tr');
+    const waypoints = [];
+    rows.forEach(r => {
+        const i = r.querySelectorAll('input');
+        const lat = parseFloat(i[2].value);
+        const lon = parseFloat(i[3].value);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            waypoints.push({ id: i[0].value, name: i[1].value, lat, lon });
+        }
+    });
+
+    if (waypoints.length === 0) return alert("No valid coordinates to display.");
+
+    document.getElementById('mapOverlay').style.display = 'block';
+
+    if (!leafletMap) {
+        leafletMap = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(leafletMap);
+        markerLayer = L.featureGroup().addTo(leafletMap);
+    }
+
+    markerLayer.clearLayers();
+    waypoints.forEach(wp => {
+        L.marker([wp.lat, wp.lon])
+            .bindPopup(`<b>${wp.id}</b><br>${wp.name}`)
+            .addTo(markerLayer);
+    });
+
+    leafletMap.fitBounds(markerLayer.getBounds(), { padding: [50, 50] });
+    leafletMap.invalidateSize(); // Fixes tile loading issues in hidden divs
+}
+
+function hideMap() {
+    document.getElementById('mapOverlay').style.display = 'none';
+}
 
 function parseCoordinate(input) {
-    if (!input || input.toString().trim() === "") return 0;
+    if (!input) return 0;
     let str = input.toString().trim().toUpperCase();
     let multiplier = (/[SW-]/.test(str)) ? -1 : 1;
     let clean = str.replace(/[^0-9. ]/g, ' ').trim();
@@ -133,186 +214,198 @@ function parseCoordinate(input) {
 }
 
 function processData() {
-    const fileInput = document.getElementById('fileInput');
-    const bulkInput = document.getElementById('bulkInput').value.trim();
-    
-    if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const reader = new FileReader();
-        const ext = file.name.toLowerCase().split('.').pop();
-        
-        reader.onload = (e) => {
+    const f = document.getElementById('fileInput');
+    const b = document.getElementById('bulkInput').value.trim();
+    if (f.files.length > 0) {
+        const r = new FileReader();
+        const ext = f.files[0].name.toLowerCase().split('.').pop();
+        r.onload = (e) => {
             if (ext === 'dat') decodeBinary(e.target.result);
             else if (ext === 'kml') parseKML(e.target.result);
             else parseText(e.target.result);
         };
-        if (ext === 'dat') reader.readAsArrayBuffer(file);
-        else reader.readAsText(file);
-    } else if (bulkInput) {
-        parseText(bulkInput);
-    } else {
-        alert("Please select a file OR paste data first.");
-    }
+        ext === 'dat' ? r.readAsArrayBuffer(f.files[0]) : r.readAsText(f.files[0]);
+    } else if (b) parseText(b);
 }
 
-function decodeBinary(buffer) {
+function parseKML(xml) {
     try {
-        const view = new DataView(buffer);
-        const totalWaypoints = view.getUint32(0, true) - 1; 
-        let waypoints = [];
-        for (let i = 0; i < totalWaypoints; i++) {
-            let offset = HEADER_SIZE + (i * RECORD_SIZE);
-            let nextOffset = offset + RECORD_SIZE;
-            let elev = view.getUint32(nextOffset + 0, true);
-            let brg = view.getUint16(nextOffset + 16, true);
-            let id = "", name = "";
-            for (let j = 0; j < 5; j++) {
-                let char = view.getUint8(offset + 24 + j);
-                if (char > 31) id += String.fromCharCode(char);
-            }
-            for (let j = 0; j < 12; j++) {
-                let char = view.getUint8(offset + 33 + j);
-                if (char > 31) name += String.fromCharCode(char);
-            }
-            waypoints.push({
-                id: id.trim(),
-                name: name.trim(),
-                lat: view.getFloat64(offset + 72, true).toFixed(6),
-                lon: view.getFloat64(offset + 80, true).toFixed(6),
-                elev: elev,
-                brg: brg
-            });
+        const p = new DOMParser();
+        const doc = p.parseFromString(xml, "text/xml");
+        const marks = doc.getElementsByTagName("Placemark");
+        let wps = [];
+        for (let i = 0; i < marks.length; i++) {
+            const m = marks[i];
+            const name = m.getElementsByTagName("name")[0]?.textContent || "WP"+i;
+            const cNode = m.getElementsByTagName("coordinates")[0]?.textContent.trim().split(/[\s,]+/);
+            const aMode = (m.getElementsByTagName("altitudeMode")[0] || m.getElementsByTagName("gx:altitudeMode")[0])?.textContent.toLowerCase();
+            let elev = cNode[2] ? parseFloat(cNode[2]) : 0;
+            if (aMode && (aMode.includes("ground") || aMode === "absolute")) elev *= 3.28084;
+            if (cNode) wps.push({ id: name, name: name, lat: parseFloat(cNode[1]).toFixed(6), lon: parseFloat(cNode[0]).toFixed(6), elev: Math.round(elev), brg: 0 });
         }
-        populateTable(waypoints);
-    } catch (e) { alert("Binary Error: " + e.message); }
+        populateTable(wps);
+    } catch (e) { alert("KML Load Error"); }
+}
+
+function decodeBinary(buf) {
+    const v = new DataView(buf);
+    const count = v.getUint32(0, true) - 1;
+    let wps = [];
+    for (let i = 0; i < count; i++) {
+        let off = HEADER_SIZE + (i * RECORD_SIZE);
+        let nOff = off + RECORD_SIZE;
+        let id = "", nm = "";
+        for (let j = 0; j < 5; j++) id += String.fromCharCode(v.getUint8(off + 24 + j));
+        for (let j = 0; j < 12; j++) nm += String.fromCharCode(v.getUint8(off + 33 + j));
+        wps.push({ id: id.trim(), name: nm.trim(), lat: v.getFloat64(off + 72, true).toFixed(6), lon: v.getFloat64(off + 80, true).toFixed(6), elev: v.getUint32(nOff, true), brg: v.getUint16(nOff + 16, true) });
+    }
+    populateTable(wps);
 }
 
 function parseText(text) {
     const lines = text.split(/\r?\n/);
-    let waypoints = [];
-    lines.forEach((line, index) => {
-        const cols = line.split(/[,\t]/).map(c => c.trim().replace(/"/g, ''));
-        if (!cols[0]) return;
-        if (index === 0 && isNaN(parseFloat(cols[2])) && !/[0-9]/.test(cols[2])) return;
-        waypoints.push({ id: cols[0], name: cols[1] || "", lat: parseCoordinate(cols[2]), lon: parseCoordinate(cols[3]), elev: cols[4] || 0, brg: cols[5] || 0 });
+    let wps = [];
+    lines.forEach((l, idx) => {
+        const c = l.split(/[,\t]/).map(col => col.trim().replace(/"/g, ''));
+        if (!c[0] || (idx === 0 && isNaN(parseFloat(c[2])) && !/[0-9]/.test(c[2]))) return;
+        wps.push({ id: c[0], name: c[1] || "", lat: parseCoordinate(c[2]), lon: parseCoordinate(c[3]), elev: c[4] || 0, brg: c[5] || 0 });
     });
-    populateTable(waypoints);
+    populateTable(wps);
 }
 
-function populateTable(waypoints) {
-    const tbody = document.querySelector('#wpTable tbody');
-    tbody.innerHTML = '';
-    waypoints.forEach(wp => {
-        const row = tbody.insertRow();
+function populateTable(wps) {
+    const tb = document.querySelector('#wpTable tbody');
+    tb.innerHTML = '';
+    wps.forEach(wp => {
+        const r = tb.insertRow();
         [wp.id, wp.name, wp.lat, wp.lon, wp.elev, wp.brg].forEach((v, i) => {
             let input = document.createElement('input');
             input.value = v;
-            row.insertCell(i).appendChild(input);
+            r.insertCell(i).appendChild(input);
         });
     });
 }
 
-function addRow() {
-    const tbody = document.querySelector('#wpTable tbody');
-    const row = tbody.insertRow();
-    for (let i = 0; i < 6; i++) {
-        let input = document.createElement('input');
-        input.value = (i > 3) ? '0' : '';
-        row.insertCell(i).appendChild(input);
+function addRows(n) {
+    const tb = document.querySelector('#wpTable tbody');
+    for (let j = 0; j < n; j++) {
+        const r = tb.insertRow();
+        for (let i = 0; i < 6; i++) {
+            let input = document.createElement('input');
+            input.value = (i > 3) ? '0' : '';
+            r.insertCell(i).appendChild(input);
+        }
     }
 }
 
-function exportCompleteFlight() {
+function checkAndExportGenesys() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
-    let csv = "Identifier,Name,Latitude,Longitude\n";
-    rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        if (inputs[0].value.trim()) csv += `${inputs[0].value},${inputs[1].value},${inputs[2].value},${inputs[3].value}\n`;
+    let issues = 0;
+    rows.forEach(r => {
+        const i = r.querySelectorAll('input');
+        if (i[0].value.length > 5 || i[1].value.length > 12) issues++;
     });
-    downloadFile(csv, "Complete_Flight_Identifiers.csv", "text/csv");
+    if (issues > 0) {
+        if (!confirm(`Warning: ${issues} waypoints exceed Genesys hardware limits.\n\nProceeding will shorten (truncate) these identifiers in the exported file to fit the 5-character ID and 12-character Name limit.\n\nClick OK to continue or Cancel to edit manually.`)) return;
+    }
+    exportData();
+}
+
+function checkAndExportGarmin() {
+    const rows = document.querySelectorAll('#wpTable tbody tr');
+    let issues = 0;
+    rows.forEach(r => {
+        const i = r.querySelectorAll('input');
+        if (i[0].value.length > 6 || i[1].value.length > 25) issues++;
+    });
+    if (issues > 0) {
+        if (!confirm(`Warning: ${issues} waypoints exceed Garmin hardware limits.\n\nProceeding will shorten (truncate) these identifiers in the exported file to fit the 6-character ID and 25-character Name limit.\n\nClick OK to continue or Cancel to edit manually.`)) return;
+    }
+    exportGarmin();
+}
+
+function exportData() {
+    const rows = document.querySelectorAll('#wpTable tbody tr');
+    let wps = [];
+    rows.forEach(r => {
+        let i = r.querySelectorAll('input');
+        if (i[0].value.trim()) {
+            wps.push({
+                id: i[0].value.substring(0, 5).toUpperCase(),
+                name: i[1].value.substring(0, 12).toUpperCase(),
+                lat: parseFloat(i[2].value) || 0,
+                lon: parseFloat(i[3].value) || 0,
+                elev: parseFloat(i[4].value) || 0,
+                brg: parseInt(i[5].value) || 0
+            });
+        }
+    });
+    if (wps.length > MAX_GENESYS) return alert("Limit Exceeded");
+    wps.sort((a, b) => a.id.localeCompare(b.id));
+    const TOTAL_SIZE = 88016;
+    let buf = new ArrayBuffer(TOTAL_SIZE), v = new DataView(buf);
+    v.setUint32(0, wps.length + 1, true);
+    const hHex = "0000000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
+    for (let i = 4; i < HEADER_SIZE; i++) v.setUint8(i, parseInt(hHex.substr(i * 2, 2), 16));
+    wps.forEach((wp, i) => {
+        let off = HEADER_SIZE + (i * RECORD_SIZE);
+        if (i > 0) { v.setUint32(off, Math.round(wps[i-1].elev / 10) * 10, true); v.setUint16(off + 16, wps[i-1].brg, true); }
+        for (let j = 0; j < wp.id.length; j++) v.setUint8(off + 24 + j, wp.id.charCodeAt(j));
+        for (let j = 0; j < wp.name.length; j++) v.setUint8(off + 33 + j, wp.name.charCodeAt(j));
+        v.setUint8(off + 64, 0x0A);
+        v.setFloat64(off + 72, wp.lat, true); v.setFloat64(off + 80, wp.lon, true);
+    });
+    let dOff = HEADER_SIZE + (wps.length * RECORD_SIZE);
+    v.setUint32(dOff, Math.round(wps[wps.length-1].elev / 10) * 10, true);
+    v.setUint16(dOff + 16, wps[wps.length-1].brg, true);
+    v.setUint8(dOff + 64, 0x0A);
+    let crc = 0xFFFFFFFF, cT = [];
+    for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1)); cT[n]=c; }
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < TOTAL_SIZE - 8; i++) crc = (crc >>> 8) ^ cT[(crc ^ bytes[i]) & 0xFF];
+    v.setUint32(TOTAL_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
+    const blob = new Blob([buf], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "user.dat"; a.click();
 }
 
 function exportGarmin() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
     let csv = "";
-    rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        const id = inputs[0].value.trim().substring(0, 6).toUpperCase();
-        if (id) csv += `${id},${inputs[1].value.substring(0, 25).toUpperCase()},${inputs[2].value},${inputs[3].value}\n`;
+    rows.forEach(r => {
+        const i = r.querySelectorAll('input');
+        if (i[0].value.trim()) {
+            csv += `${i[0].value.substring(0, 6).toUpperCase()},${i[1].value.substring(0, 25).toUpperCase()},${i[2].value},${i[3].value}\n`;
+        }
     });
-    downloadFile(csv, "user.wpt", "text/csv");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "user.wpt"; a.click();
 }
 
-function exportData() {
+function exportCompleteFlight() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
-    let waypoints = [];
-    rows.forEach(row => {
-        let inputs = row.querySelectorAll('input');
-        if (inputs[0].value.trim()) {
-            waypoints.push({
-                id: inputs[0].value.substring(0, 5).toUpperCase(),
-                name: (inputs[1].value || "").substring(0, 12).toUpperCase(),
-                lat: parseFloat(inputs[2].value) || 0,
-                lon: parseFloat(inputs[3].value) || 0,
-                elev: parseFloat(inputs[4].value) || 0,
-                bearing: parseInt(inputs[5].value) || 0
-            });
-        }
+    let csv = "Identifier,Name,Latitude,Longitude\n";
+    rows.forEach(r => {
+        const i = r.querySelectorAll('input');
+        if (i[0].value.trim()) csv += `${i[0].value},${i[1].value},${i[2].value},${i[3].value}\n`;
     });
-    if (waypoints.length > MAX_GENESYS) { alert("Max 998 limit."); return; }
-    waypoints.sort((a, b) => a.id.localeCompare(b.id));
-    const TOTAL_SIZE = 88016;
-    let buffer = new ArrayBuffer(TOTAL_SIZE), view = new DataView(buffer);
-    view.setUint32(0, waypoints.length + 1, true);
-    const headerHex = "0000000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
-    for (let i = 4; i < HEADER_SIZE; i++) view.setUint8(i, parseInt(headerHex.substr(i * 2, 2), 16));
-    waypoints.forEach((wp, i) => {
-        let offset = HEADER_SIZE + (i * RECORD_SIZE);
-        if (i > 0) {
-            view.setUint32(offset + 0, Math.round(waypoints[i-1].elev / 10) * 10, true);
-            view.setUint16(offset + 16, waypoints[i-1].bearing, true);
-        }
-        for (let j = 0; j < wp.id.length; j++) view.setUint8(offset + 24 + j, wp.id.charCodeAt(j));
-        for (let j = 0; j < wp.name.length; j++) view.setUint8(offset + 33 + j, wp.name.charCodeAt(j));
-        view.setUint8(offset + 64, 0x0A);
-        view.setFloat64(offset + 72, wp.lat, true);
-        view.setFloat64(offset + 80, wp.lon, true);
-    });
-    let dOff = HEADER_SIZE + (waypoints.length * RECORD_SIZE);
-    view.setUint32(dOff + 0, Math.round(waypoints[waypoints.length-1].elev / 10) * 10, true);
-    view.setUint16(dOff + 16, waypoints[waypoints.length-1].bearing, true);
-    view.setUint8(dOff + 64, 0x0A);
-    let crc = 0xFFFFFFFF, cTable = [];
-    for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1)); cTable[n]=c; }
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < TOTAL_SIZE - 8; i++) crc = (crc >>> 8) ^ cTable[(crc ^ bytes[i]) & 0xFF];
-    view.setUint32(TOTAL_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
-    const blob = new Blob([buffer], { type: "application/octet-stream" });
-    downloadBlob(blob, "user.dat");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "Complete_Flight.csv"; a.click();
 }
 
 function exportKML() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
-    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document><name>Export</name>`;
-    rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        if (inputs[0].value) kml += `\n<Placemark><name>${inputs[0].value}</name><Point><coordinates>${inputs[3].value},${inputs[2].value}</coordinates></Point></Placemark>`;
+    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Export</name>`;
+    rows.forEach(r => {
+        const i = r.querySelectorAll('input');
+        if (i[0].value) kml += `\n<Placemark><name>${i[0].value}</name><Point><coordinates>${i[3].value},${i[2].value}</coordinates></Point></Placemark>`;
     });
     kml += `\n</Document></kml>`;
-    downloadFile(kml, "waypoints.kml", "application/vnd.google-earth.kml+xml");
-}
-
-function downloadFile(content, filename, type) {
-    const blob = new Blob([content], { type: type });
-    downloadBlob(blob, filename);
-}
-
-function downloadBlob(blob, filename) {
+    const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href = url; a.download = "waypoints.kml"; a.click();
 }
 </script>
 </body>
