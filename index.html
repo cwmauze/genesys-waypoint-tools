@@ -45,9 +45,9 @@
     
     <div class="instructions">
         <strong>How to use:</strong><br>
-        1. Select a file (.dat, .wpt, .csv, .txt, .kml) or paste rows from your data software.<br>
-        2. Click <strong>"Load Data"</strong> to populate the table. Garmin formats are automatically detected.<br>
-        3. Verify information and click the descriptive download button for your specific avionics.<br>
+        1. Load a file or paste rows. The parser handles DD, DDM, and DMS formats (e.g., 40 26.7 N or N 40 26 46).<br>
+        2. Click <strong>"Load Data"</strong>. Coordinates will automatically convert to Decimal Degrees.<br>
+        3. Click the download button for your specific avionics suite.<br>
         <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
             <strong>References:</strong> 
             <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Genesys IDU Guides</a> | 
@@ -62,7 +62,7 @@
         </div>
         <div style="flex: 2; min-width: 300px;">
             <label>Bulk Paste Rows</label>
-            <textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste rows from data software here..."></textarea>
+            <textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste rows from data software..."></textarea>
         </div>
     </div>
     
@@ -94,7 +94,7 @@
     </div>
 
     <div class="footer">
-        Version 5.46 | Compatible with IDU-450, IDU-680, IDU-1380 & Garmin GTN Series
+        Version 5.48 | Robust Coordinate Parsing Enabled | IDU-450, 680, 1380 & Garmin GTN
     </div>
 </div>
 
@@ -123,6 +123,31 @@ function removeAll() {
     }
 }
 
+// v5.48 Robust Coordinate Parser
+function parseCoordinate(input) {
+    if (!input || input.toString().trim() === "") return 0;
+    let str = input.toString().trim().toUpperCase();
+    
+    // Detect direction letter anywhere in string
+    let multiplier = 1;
+    if (str.includes('S') || str.includes('W') || str.includes('-')) multiplier = -1;
+    
+    // Remove all non-numeric/non-space characters except decimal point
+    let clean = str.replace(/[^0-9. ]/g, '').trim();
+    let parts = clean.split(/ +/).filter(p => p.length > 0);
+
+    let dd = 0;
+    if (parts.length === 1) {
+        dd = parseFloat(parts[0]);
+    } else if (parts.length === 2) {
+        dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60);
+    } else if (parts.length >= 3) {
+        dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60) + (parseFloat(parts[2]) / 3600);
+    }
+    
+    return (dd * multiplier).toFixed(6);
+}
+
 function processData() {
     const fileInput = document.getElementById('fileInput');
     const bulkInput = document.getElementById('bulkInput').value.trim();
@@ -144,37 +169,7 @@ function processData() {
         }
     } else if (bulkInput) {
         parseText(bulkInput);
-    } else {
-        alert("Please select a file or paste data first.");
     }
-}
-
-function parseKML(xmlText) {
-    try {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-        const placemarks = xmlDoc.getElementsByTagName("Placemark");
-        let waypoints = [];
-        for (let i = 0; i < placemarks.length; i++) {
-            const pm = placemarks[i];
-            const name = pm.getElementsByTagName("name")[0]?.textContent || "WP" + i;
-            const coordsNode = pm.getElementsByTagName("coordinates")[0];
-            if (coordsNode) {
-                const parts = coordsNode.textContent.trim().split(",");
-                if (parts.length >= 2) {
-                    waypoints.push({
-                        id: name.substring(0, 6).toUpperCase().replace(/\s/g, ''),
-                        name: name.substring(0, 25).toUpperCase(),
-                        lat: parseFloat(parts[1]).toFixed(5),
-                        lon: parseFloat(parts[0]).toFixed(5),
-                        elev: Math.round(parseFloat(parts[2] || 0)),
-                        brg: 0
-                    });
-                }
-            }
-        }
-        populateTable(waypoints);
-    } catch (e) { alert("KML Error: " + e.message); }
 }
 
 function parseText(text) {
@@ -182,13 +177,24 @@ function parseText(text) {
     let waypoints = [];
     lines.forEach((line, index) => {
         const cols = line.split(/[,\t]/).map(c => c.trim().replace(/"/g, ''));
-        if (!cols[0] || (index === 0 && isNaN(parseFloat(cols[2])) && cols.length > 4)) return;
+        if (!cols[0]) return;
         
-        // Smart Detection: Garmin (4 cols) vs Genesys (6 cols)
+        let id = cols[0];
+        let name = cols[1] || "";
+        let lat, lon, elev = 0, brg = 0;
+
         if (cols.length === 4) {
-            waypoints.push({ id: cols[0], name: cols[1], lat: cols[2], lon: cols[3], elev: 0, brg: 0 });
+            lat = parseCoordinate(cols[2]);
+            lon = parseCoordinate(cols[3]);
         } else {
-            waypoints.push({ id: cols[0], name: cols[1] || "", lat: cols[2], lon: cols[3], elev: cols[4] || 0, brg: cols[5] || 0 });
+            lat = parseCoordinate(cols[2]);
+            lon = parseCoordinate(cols[3]);
+            elev = cols[4] || 0;
+            brg = cols[5] || 0;
+        }
+        
+        if (!isNaN(lat) && !isNaN(lon)) {
+            waypoints.push({ id, name, lat, lon, elev, brg });
         }
     });
     populateTable(waypoints);
@@ -202,7 +208,6 @@ function populateTable(waypoints) {
         const vals = [wp.id, wp.name, wp.lat, wp.lon, wp.elev, wp.brg];
         vals.forEach((v, i) => {
             let input = document.createElement('input');
-            input.type = 'text';
             input.value = v;
             row.insertCell(i).appendChild(input);
         });
@@ -214,7 +219,6 @@ function addRow() {
     const row = tbody.insertRow();
     for (let i = 0; i < 6; i++) {
         let input = document.createElement('input');
-        input.type = 'text';
         input.value = (i > 3) ? '0' : '';
         row.insertCell(i).appendChild(input);
     }
@@ -227,9 +231,7 @@ function exportGarmin() {
         const inputs = row.querySelectorAll('input');
         const id = inputs[0].value.trim().substring(0, 6).toUpperCase();
         const name = inputs[1].value.trim().substring(0, 25).toUpperCase();
-        if (id) {
-            csv += `${id},${name},${inputs[2].value},${inputs[3].value}\n`;
-        }
+        if (id) csv += `${id},${name},${inputs[2].value},${inputs[3].value}\n`;
     });
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -263,12 +265,17 @@ function decodeBinary(buffer) {
         for (let i = 0; i < count; i++) {
             let offset = HEADER_SIZE + (i * RECORD_SIZE);
             let nextOffset = offset + RECORD_SIZE;
-            let elev = view.getUint32(nextOffset + 0, true);
-            let brg = view.getUint16(nextOffset + 16, true);
             let id = "", name = "";
             for (let j = 0; j < 5; j++) id += String.fromCharCode(view.getUint8(offset + 24 + j));
             for (let j = 0; j < 12; j++) name += String.fromCharCode(view.getUint8(offset + 33 + j));
-            waypoints.push({ id: id.trim(), name: name.trim(), lat: view.getFloat64(offset + 72, true).toFixed(5), lon: view.getFloat64(offset + 80, true).toFixed(5), elev, brg });
+            waypoints.push({ 
+                id: id.trim(), 
+                name: name.trim(), 
+                lat: view.getFloat64(offset + 72, true).toFixed(6), 
+                lon: view.getFloat64(offset + 80, true).toFixed(6), 
+                elev: view.getUint32(nextOffset + 0, true), 
+                brg: view.getUint16(nextOffset + 16, true) 
+            });
         }
         populateTable(waypoints);
     } catch (e) { alert("Decode Error: " + e.message); }
@@ -291,17 +298,15 @@ function exportData() {
         }
     });
     
-    if (waypoints.length > MAX_GENESYS) {
-        alert("Genesys EFIS limit exceeded (Max 998).");
-        return;
-    }
-
+    if (waypoints.length > MAX_GENESYS) { alert("Genesys limit exceeded (Max 998)."); return; }
     waypoints.sort((a, b) => a.id.localeCompare(b.id));
+
     const TOTAL_SIZE = 88016;
     let buffer = new ArrayBuffer(TOTAL_SIZE), view = new DataView(buffer);
     view.setUint32(0, waypoints.length + 1, true);
     const headerHex = "0000000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
     for (let i = 4; i < HEADER_SIZE; i++) view.setUint8(i, parseInt(headerHex.substr(i * 2, 2), 16));
+    
     waypoints.forEach((wp, i) => {
         let offset = HEADER_SIZE + (i * RECORD_SIZE);
         if (i > 0) {
@@ -314,15 +319,18 @@ function exportData() {
         view.setFloat64(offset + 72, wp.lat, true);
         view.setFloat64(offset + 80, wp.lon, true);
     });
+    
     let dOff = HEADER_SIZE + (waypoints.length * RECORD_SIZE);
     view.setUint32(dOff + 0, Math.round(waypoints[waypoints.length-1].elev / 10) * 10, true);
     view.setUint16(dOff + 16, waypoints[waypoints.length-1].bearing, true);
     view.setUint8(dOff + 64, 0x0A);
+    
     let crc = 0xFFFFFFFF, cTable = [];
     for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1)); cTable[n]=c; }
     const bytes = new Uint8Array(buffer);
     for (let i = 0; i < TOTAL_SIZE - 8; i++) crc = (crc >>> 8) ^ cTable[(crc ^ bytes[i]) & 0xFF];
     view.setUint32(TOTAL_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
+    
     const blob = new Blob([buffer], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -337,7 +345,7 @@ function copyToClipboard() {
         const inputs = row.querySelectorAll('input');
         csv += Array.from(inputs).map(i => i.value).join(",") + "\n";
     });
-    navigator.clipboard.writeText(csv).then(() => alert("CSV Copied to Clipboard"));
+    navigator.clipboard.writeText(csv).then(() => alert("Copied!"));
 }
 </script>
 </body>
