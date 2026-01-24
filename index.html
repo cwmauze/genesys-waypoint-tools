@@ -17,10 +17,10 @@
         .container { max-width: 950px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
         h2 { margin: 0; color: var(--primary); }
-        .instructions { background: rgba(26, 115, 232, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); margin-bottom: 20px; font-size: 14px; }
+        .instructions { background: rgba(26, 115, 232, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; table-layout: fixed; }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
-        th { background-color: var(--secondary); font-weight: 600; }
+        th { background-color: var(--secondary); font-weight: 600; font-size: 12px; }
         input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: var(--card); color: var(--text); box-sizing: border-box; }
         .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; }
         .btn-primary { background: var(--primary); color: white; }
@@ -40,7 +40,10 @@
     </div>
     
     <div class="instructions">
-        <strong>Mission Control:</strong> Load your data, verify the table, and download the binary file for the IDU.
+        <strong>How to use:</strong><br>
+        1. Select a file (.dat, .csv, or .txt) or paste rows from your master spreadsheet.<br>
+        2. Click <strong>"Load Data"</strong> to populate the table.<br>
+        3. Verify the waypoint data and click <strong>"Download USER.DAT"</strong>.
     </div>
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
@@ -64,12 +67,12 @@
     <table id="wpTable">
         <thead>
             <tr>
-                <th style="width: 15%;">Identifier</th>
-                <th style="width: 25%;">Long Name</th>
+                <th style="width: 13%;">Identifier</th>
+                <th style="width: 23%;">Long Name</th>
                 <th style="width: 15%;">Latitude</th>
                 <th style="width: 15%;">Longitude</th>
-                <th style="width: 15%;">Elevation</th>
-                <th style="width: 15%;">App Brg</th>
+                <th style="width: 17%;">Elevation (Ft MSL)</th>
+                <th style="width: 17%;">Approach Bearing</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -81,13 +84,11 @@
     </div>
 
     <div class="footer">
-        Aviation Data Systems | Logic v5.32 | Production Ready
+        Aviation Data Systems | Logic v5.34 | Configuration Locked
     </div>
 </div>
 
 <script>
-console.log("System initialization started...");
-
 const RECORD_SIZE = 88;
 const HEADER_SIZE = 72;
 
@@ -109,7 +110,6 @@ function removeAll() {
 function processData() {
     const fileInput = document.getElementById('fileInput');
     const bulkInput = document.getElementById('bulkInput').value.trim();
-    
     if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const reader = new FileReader();
@@ -132,14 +132,11 @@ function decodeBinary(buffer) {
         const view = new DataView(buffer);
         const count = view.getUint32(0, true) - 1; 
         let waypoints = [];
-
         for (let i = 0; i < count; i++) {
             let offset = HEADER_SIZE + (i * RECORD_SIZE);
             let nextOffset = offset + RECORD_SIZE;
-
             let elev = view.getUint32(nextOffset + 0, true);
             let brg = view.getUint16(nextOffset + 16, true);
-
             let id = "", name = "";
             for (let j = 0; j < 5; j++) {
                 let char = view.getUint8(offset + 24 + j);
@@ -149,19 +146,15 @@ function decodeBinary(buffer) {
                 let char = view.getUint8(offset + 33 + j);
                 if (char >= 32 && char <= 126) name += String.fromCharCode(char);
             }
-
             waypoints.push({
-                id: id.trim(), 
-                name: name.trim(),
+                id: id.trim(), name: name.trim(),
                 lat: view.getFloat64(offset + 72, true).toFixed(5),
                 lon: view.getFloat64(offset + 80, true).toFixed(5),
                 elev: elev, brg: brg
             });
         }
         populateTable(waypoints);
-    } catch (e) {
-        alert("Binary Decode Error: " + e.message);
-    }
+    } catch (e) { alert("Decode Error: " + e.message); }
 }
 
 function parseText(text) {
@@ -207,12 +200,10 @@ function addRow() {
 
 function copyToClipboard() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
-    let csv = "Identifier,Name,Latitude,Longitude,Elevation,Bearing\n";
+    let csv = "Identifier,Name,Latitude,Longitude,Elevation (Ft MSL),Approach Bearing\n";
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        if(inputs.length >= 6) {
-            csv += Array.from(inputs).map(i => i.value).join(",") + "\n";
-        }
+        if(inputs.length >= 6) { csv += Array.from(inputs).map(i => i.value).join(",") + "\n"; }
     });
     navigator.clipboard.writeText(csv).then(() => alert("Copied to clipboard!"));
 }
@@ -223,7 +214,7 @@ function exportData() {
         let waypoints = [];
         rows.forEach(row => {
             let inputs = row.querySelectorAll('input');
-            if (inputs[0] && inputs[0].value.trim()) {
+            if (inputs[0].value.trim()) {
                 waypoints.push({
                     id: inputs[0].value.substring(0, 5).toUpperCase(),
                     name: (inputs[1].value || inputs[0].value).substring(0, 12).toUpperCase(),
@@ -234,17 +225,13 @@ function exportData() {
                 });
             }
         });
-
         if (!waypoints.length) return;
         waypoints.sort((a, b) => a.id.localeCompare(b.id));
-
         const TOTAL_FILE_SIZE = 88016; 
         let buffer = new ArrayBuffer(TOTAL_FILE_SIZE), view = new DataView(buffer);
-        
         view.setUint32(0, waypoints.length + 1, true);
         const headerHex = "0000000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
         for (let i = 4; i < HEADER_SIZE; i++) view.setUint8(i, parseInt(headerHex.substr(i * 2, 2), 16));
-
         waypoints.forEach((wp, i) => {
             let offset = HEADER_SIZE + (i * RECORD_SIZE);
             if (i > 0) {
@@ -257,18 +244,15 @@ function exportData() {
             view.setFloat64(offset + 72, wp.lat, true);
             view.setFloat64(offset + 80, wp.lon, true);
         });
-
         let dOff = HEADER_SIZE + (waypoints.length * RECORD_SIZE);
         view.setUint32(dOff + 0, Math.round(waypoints[waypoints.length-1].elev / 10) * 10, true);
         view.setUint16(dOff + 16, waypoints[waypoints.length-1].bearing, true);
         view.setUint8(dOff + 64, 0x0A);
-
         let crc = 0xFFFFFFFF, cTable = [];
         for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1)); cTable[n]=c; }
         const bytes = new Uint8Array(buffer);
         for (let i = 0; i < TOTAL_FILE_SIZE - 8; i++) crc = (crc >>> 8) ^ cTable[(crc ^ bytes[i]) & 0xFF];
         view.setUint32(TOTAL_FILE_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
-
         const blob = new Blob([buffer], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -276,7 +260,6 @@ function exportData() {
         a.click(); URL.revokeObjectURL(url);
     } catch (e) { alert("Export Error: " + e.message); }
 }
-console.log("System initialization complete.");
 </script>
 </body>
 </html>
