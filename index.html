@@ -23,7 +23,7 @@
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
         th { background-color: var(--secondary); font-weight: 600; font-size: 12px; }
         input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: var(--card); color: var(--text); box-sizing: border-box; }
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: opacity 0.2s; text-align: center; color: white; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: opacity 0.2s; text-align: center; color: white; display: inline-block; vertical-align: middle; }
         .btn:hover { opacity: 0.85; }
         .btn span { display: block; font-size: 10px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
         .btn-primary { background: var(--primary); }
@@ -33,6 +33,7 @@
         .action-bar { background: var(--secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; }
         a { color: var(--primary); text-decoration: none; }
+        hr { border: 0; border-top: 1px solid var(--border); margin: 25px 0; }
     </style>
 </head>
 <body>
@@ -44,10 +45,7 @@
     </div>
     
     <div class="instructions">
-        <strong>Pre-Flight Data Prep:</strong><br>
-        1. Paste rows from data software or select a file (.dat, .csv, .kml).<br>
-        2. Click <strong>"Load Data"</strong>. Coordinates (DD, DDM, or DMS) will automatically normalize.<br>
-        3. Use the descriptive download buttons for your specific aircraft or dispatch system.<br>
+        <strong>Workflow:</strong> 1. Add data (File or Paste) &rarr; 2. Click <strong>LOAD DATA</strong> &rarr; 3. Verify in table &rarr; 4. Export.
         <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
             <strong>References:</strong> 
             <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Genesys IDU Guides</a> | 
@@ -55,24 +53,30 @@
         </div>
     </div>
 
-    <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+    <div style="display: flex; gap: 20px; margin-bottom: 10px; flex-wrap: wrap; align-items: flex-end;">
         <div style="flex: 1; min-width: 250px;">
-            <label>Option A: Load File</label>
+            <label>Option A: Load File (.dat, .csv, .kml)</label>
             <input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt">
         </div>
         <div style="flex: 2; min-width: 300px;">
             <label>Option B: Bulk Paste Rows</label>
             <textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..."></textarea>
         </div>
+        <div>
+            <button class="btn btn-primary" style="padding: 12px 25px;" onclick="processData()">LOAD DATA</button>
+        </div>
     </div>
-    
+
+    <hr>
+
     <div class="action-bar">
-        <button class="btn btn-primary" onclick="processData()">Load Data</button>
+        <span style="font-size: 12px; font-weight: bold; color: var(--primary); margin-right: 10px;">EXPORT:</span>
         <button class="btn" onclick="exportData()" style="background-color: var(--success);">Download user.dat <span>GENESYS BINARY</span></button>
         <button class="btn" onclick="exportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GTN</span></button>
         <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Download CSV <span>COMPLETE FLIGHT (EXP)</span></button>
         <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1;">Export KML <span>GOOGLE EARTH</span></button>
-        <button class="btn btn-danger" onclick="removeAll()">Clear All</button>
+        <div style="flex-grow: 1;"></div>
+        <button class="btn btn-danger" onclick="removeAll()">Clear Table</button>
     </div>
     
     <table id="wpTable">
@@ -92,7 +96,7 @@
     <button class="btn btn-secondary" style="color:var(--text)" onclick="addRow()">+ Add Single Row</button>
 
     <div class="footer">
-        Version 5.53 | Fixed Binary Import | Robust Coordinate Parsing | Genesys, Garmin, Complete Flight
+        Version 5.54 | UI Workflow Enhancement | Robust Binary & Text Import
     </div>
 </div>
 
@@ -113,7 +117,7 @@ function toggleTheme() {
     }
 }
 
-function removeAll() { if (confirm("Clear all data?")) { document.querySelector('#wpTable tbody').innerHTML = ''; } }
+function removeAll() { if (confirm("Clear all table data?")) { document.querySelector('#wpTable tbody').innerHTML = ''; } }
 
 function parseCoordinate(input) {
     if (!input || input.toString().trim() === "") return 0;
@@ -142,7 +146,6 @@ function processData() {
             else if (ext === 'kml') parseKML(e.target.result);
             else parseText(e.target.result);
         };
-
         if (ext === 'dat') reader.readAsArrayBuffer(file);
         else reader.readAsText(file);
     } else if (bulkInput) {
@@ -219,7 +222,6 @@ function addRow() {
     }
 }
 
-// Exports
 function exportCompleteFlight() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
     let csv = "Identifier,Name,Latitude,Longitude\n";
