@@ -5,8 +5,6 @@ A browser-based, standalone utility for managing user-defined waypoint data for 
 ## ✈️ Mission Profile
 This tool bridges the gap between data software (Excel, Google Earth), flight planning software (ForeFlight), and the Genesys Aerosystems FMS. It ensures that your custom waypoint lists are formatted correctly for seamless upload via USB.
 
-[Image of a Genesys Aerosystems IDU-680 EFIS display showing a navigation map and waypoints]
-
 ## 🛠 Features
 * **Universal Import:** Supports `.dat` (binary), `.csv`, `.txt`, and `.kml`.
 * **Edit & Sync:** Decode existing `USER.DAT` files from your aircraft to edit them directly in the browser.
@@ -14,7 +12,7 @@ This tool bridges the gap between data software (Excel, Google Earth), flight pl
 * **Header Intelligence:** Automatically identifies and skips spreadsheet header rows (e.g., "Identifier", "Latitude").
 * **Field Portability:** Operates as a single `index.html` file—no internet required after the initial load.
 
-## 📋 Specifications (Logic v5.44)
+## 📋 Specifications
 * **Target Hardware:** IDU-450, IDU-680, IDU-1380.
 * **Output Format:** Standardized `USER.DAT` binary.
 * **Capacity:** Supports up to 998 user-defined waypoints.
@@ -25,10 +23,8 @@ This tool bridges the gap between data software (Excel, Google Earth), flight pl
 2.  **Verify:** Confirm the coordinates, **Elevation (Ft MSL)**, and **Approach Bearing** in the table.
 3.  **Download:** Click **Download USER.DAT** to save the file for USB upload to the EFIS.
 
-[Image of a USB drive being used with an aircraft cockpit display for data transfer]
-
 ## 🔗 Official Documentation
 For specific EFIS configuration settings and flight operations, refer to the [Official Genesys IDU Pilot Guides](https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html).
 
 ---
-*Configuration Locked | v5.44*
+*Release Version: 5.44*
