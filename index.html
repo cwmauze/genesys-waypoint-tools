@@ -41,7 +41,7 @@
     <div class="instructions">
         <strong>Mission Control:</strong><br>
         • <strong>Upload:</strong> Use <code>user.dat</code>, <code>.csv</code>, or <code>.txt</code>.<br>
-        • <strong>Edit:</strong> Modify the table. Rows sort alphabetically on export.<br>
+        • <strong>Edit:</strong> Modify the table directly. Rows sort alphabetically on export.<br>
         • <strong>Export:</strong> Download binary for the aircraft or copy as CSV.
     </div>
 
@@ -82,7 +82,7 @@
     </div>
 
     <div class="footer">
-        Aviation Data Systems | Logic v5.30 | Production Ready
+        Aviation Data Systems | Logic v5.31 | Production Ready
     </div>
 </div>
 
@@ -141,18 +141,20 @@ function decodeBinary(buffer) {
             let elev = view.getUint32(nextOffset + 0, true);
             let brg = view.getUint16(nextOffset + 16, true);
 
+            // Updated string decoding to preserve spaces (ASCII 32)
             let id = "", name = "";
             for (let j = 0; j < 5; j++) {
                 let char = view.getUint8(offset + 24 + j);
-                if (char > 32) id += String.fromCharCode(char);
+                if (char >= 32 && char <= 126) id += String.fromCharCode(char);
             }
             for (let j = 0; j < 12; j++) {
                 let char = view.getUint8(offset + 33 + j);
-                if (char > 32) name += String.fromCharCode(char);
+                if (char >= 32 && char <= 126) name += String.fromCharCode(char);
             }
 
             waypoints.push({
-                id: id, name: name,
+                id: id.trim(), 
+                name: name.trim(),
                 lat: view.getFloat64(offset + 72, true).toFixed(5),
                 lon: view.getFloat64(offset + 80, true).toFixed(5),
                 elev: elev, brg: brg
