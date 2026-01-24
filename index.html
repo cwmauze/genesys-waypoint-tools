@@ -23,12 +23,12 @@
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
         th { background-color: var(--secondary); font-weight: 600; font-size: 12px; }
         input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: var(--card); color: var(--text); box-sizing: border-box; }
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: opacity 0.2s; text-align: center; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: opacity 0.2s; text-align: center; color: white; }
         .btn:hover { opacity: 0.85; }
         .btn span { display: block; font-size: 10px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
-        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary { background: var(--primary); }
         .btn-secondary { background: var(--secondary); color: var(--text); }
-        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger { background: var(--danger); }
         .footer { margin-top: 30px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid var(--border); padding-top: 15px; }
         .action-bar { background: var(--secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; }
@@ -44,10 +44,10 @@
     </div>
     
     <div class="instructions">
-        <strong>Pre-Flight Planning:</strong><br>
-        1. Paste rows from data software or load a file. Parser handles DD, DDM, and DMS.<br>
-        2. Click <strong>"Load Data"</strong> to normalize all coordinates to Decimal Degrees.<br>
-        3. Use the descriptive download buttons for your specific aircraft or dispatch system.<br>
+        <strong>Pre-Flight Data Prep:</strong><br>
+        1. Paste rows from data software (Excel/Google Earth) or select a file.<br>
+        2. Click <strong>"Load Data"</strong>. Coordinates (DD, DDM, or DMS) will automatically normalize.<br>
+        3. Click the appropriate button to export for your avionics or dispatch system.<br>
         <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
             <strong>References:</strong> 
             <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Genesys IDU Guides</a> | 
@@ -57,21 +57,21 @@
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 250px;">
-            <label>Load File</label>
+            <label>Option A: Load File</label>
             <input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt">
         </div>
         <div style="flex: 2; min-width: 300px;">
-            <label>Bulk Paste Rows</label>
+            <label>Option B: Bulk Paste Rows</label>
             <textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..."></textarea>
         </div>
     </div>
     
     <div class="action-bar">
         <button class="btn btn-primary" onclick="processData()">Load Data</button>
-        <button class="btn" onclick="exportData()" style="background-color: var(--success); color: white;">Download user.dat <span>GENESYS BINARY</span></button>
-        <button class="btn" onclick="exportGarmin()" style="background-color: var(--garmin); color: white;">Download user.wpt <span>GARMIN GTN</span></button>
-        <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch); color: white;">Download CSV <span>COMPLETE FLIGHT (EXP)</span></button>
-        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1; color: white;">Export KML <span>GOOGLE EARTH</span></button>
+        <button class="btn" onclick="exportData()" style="background-color: var(--success);">Download user.dat <span>GENESYS BINARY</span></button>
+        <button class="btn" onclick="exportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GTN</span></button>
+        <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Download CSV <span>COMPLETE FLIGHT (EXP)</span></button>
+        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1;">Export KML <span>GOOGLE EARTH</span></button>
         <button class="btn btn-danger" onclick="removeAll()">Clear All</button>
     </div>
     
@@ -89,10 +89,10 @@
         <tbody></tbody>
     </table>
 
-    <button class="btn btn-secondary" onclick="addRow()">+ Add Single Row</button>
+    <button class="btn btn-secondary" style="color:var(--text)" onclick="addRow()">+ Add Single Row</button>
 
     <div class="footer">
-        Version 5.50 | Integrated Dispatch & Avionics Support | IDU-450, 680, 1380, Garmin GTN, Complete Flight
+        Version 5.51 | Fixed Load Logic | Robust Coordinate Parsing | Genesys, Garmin, Complete Flight
     </div>
 </div>
 
@@ -115,41 +115,81 @@ function toggleTheme() {
 
 function removeAll() { if (confirm("Clear all data?")) { document.querySelector('#wpTable tbody').innerHTML = ''; } }
 
+// Robust Parser for DD, DDM, DMS
 function parseCoordinate(input) {
     if (!input || input.toString().trim() === "") return 0;
     let str = input.toString().trim().toUpperCase();
-    let multiplier = (str.includes('S') || str.includes('W') || str.includes('-')) ? -1 : 1;
-    let clean = str.replace(/[^0-9. ]/g, '').trim();
-    let parts = clean.split(/ +/).filter(p => p.length > 0);
+    
+    // Determine sign: Negative if S, W, or contains a minus
+    let multiplier = (/[SW-]/.test(str)) ? -1 : 1;
+    
+    // Remove everything except numbers, periods, and spaces
+    let clean = str.replace(/[^0-9. ]/g, ' ').trim();
+    let parts = clean.split(/\s+/).filter(p => p.length > 0);
+
     let dd = 0;
-    if (parts.length === 1) dd = parseFloat(parts[0]);
-    else if (parts.length === 2) dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60);
-    else if (parts.length >= 3) dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60) + (parseFloat(parts[2]) / 3600);
+    if (parts.length === 1) {
+        dd = parseFloat(parts[0]);
+    } else if (parts.length === 2) {
+        // DDM: D + M/60
+        dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60);
+    } else if (parts.length >= 3) {
+        // DMS: D + M/60 + S/3600
+        dd = parseFloat(parts[0]) + (parseFloat(parts[1]) / 60) + (parseFloat(parts[2]) / 3600);
+    }
+    
     return (dd * multiplier).toFixed(6);
 }
 
 function processData() {
     const fileInput = document.getElementById('fileInput');
     const bulkInput = document.getElementById('bulkInput').value.trim();
+    
+    // Logic Fix: Prioritize File, Fallback to Text Area
     if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
         const reader = new FileReader();
+        const ext = file.name.toLowerCase().split('.').pop();
+        
         reader.onload = (e) => {
-            const ext = fileInput.files[0].name.toLowerCase().split('.').pop();
             if (ext === 'dat') decodeBinary(e.target.result);
+            else if (ext === 'kml') parseKML(e.target.result);
             else parseText(e.target.result);
         };
-        if (fileInput.files[0].name.endsWith('.dat')) reader.readAsArrayBuffer(fileInput.files[0]);
-        else reader.readAsText(fileInput.files[0]);
-    } else if (bulkInput) parseText(bulkInput);
+
+        if (ext === 'dat') reader.readAsArrayBuffer(file);
+        else reader.readAsText(file);
+    } else if (bulkInput) {
+        parseText(bulkInput);
+    } else {
+        alert("Please select a file OR paste data into the text box.");
+    }
 }
 
 function parseText(text) {
     const lines = text.split(/\r?\n/);
     let waypoints = [];
     lines.forEach((line, index) => {
+        // Split by comma or tab
         const cols = line.split(/[,\t]/).map(c => c.trim().replace(/"/g, ''));
-        if (!cols[0] || (index === 0 && isNaN(parseFloat(cols[2])) && cols.length > 4)) return;
-        waypoints.push({ id: cols[0], name: cols[1] || "", lat: parseCoordinate(cols[2]), lon: parseCoordinate(cols[3]), elev: cols[4] || 0, brg: cols[5] || 0 });
+        if (!cols[0]) return;
+        
+        // Skip header rows if present
+        if (index === 0 && isNaN(parseFloat(cols[2])) && !/[NSEW]/.test(cols[2].toUpperCase())) return;
+
+        let lat = parseCoordinate(cols[2]);
+        let lon = parseCoordinate(cols[3]);
+        
+        if (!isNaN(lat) && !isNaN(lon)) {
+            waypoints.push({
+                id: cols[0],
+                name: cols[1] || "",
+                lat: lat,
+                lon: lon,
+                elev: cols[4] || 0,
+                brg: cols[5] || 0
+            });
+        }
     });
     populateTable(waypoints);
 }
@@ -167,6 +207,17 @@ function populateTable(waypoints) {
     });
 }
 
+function addRow() {
+    const tbody = document.querySelector('#wpTable tbody');
+    const row = tbody.insertRow();
+    for (let i = 0; i < 6; i++) {
+        let input = document.createElement('input');
+        input.value = (i > 3) ? '0' : '';
+        row.insertCell(i).appendChild(input);
+    }
+}
+
+// Export Logics
 function exportCompleteFlight() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
     let csv = "Identifier,Name,Latitude,Longitude\n";
@@ -176,11 +227,7 @@ function exportCompleteFlight() {
             csv += `${inputs[0].value},${inputs[1].value},${inputs[2].value},${inputs[3].value}\n`;
         }
     });
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "Complete_Flight_Identifiers.csv";
-    a.click();
+    downloadFile(csv, "Complete_Flight_Identifiers.csv", "text/csv");
 }
 
 function exportGarmin() {
@@ -191,11 +238,7 @@ function exportGarmin() {
         const id = inputs[0].value.trim().substring(0, 6).toUpperCase();
         if (id) csv += `${id},${inputs[1].value.substring(0, 25).toUpperCase()},${inputs[2].value},${inputs[3].value}\n`;
     });
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "user.wpt";
-    a.click();
+    downloadFile(csv, "user.wpt", "text/csv");
 }
 
 function exportData() {
@@ -214,13 +257,16 @@ function exportData() {
             });
         }
     });
+    
     if (waypoints.length > MAX_GENESYS) { alert("Max 998 limit."); return; }
     waypoints.sort((a, b) => a.id.localeCompare(b.id));
+
     const TOTAL_SIZE = 88016;
     let buffer = new ArrayBuffer(TOTAL_SIZE), view = new DataView(buffer);
     view.setUint32(0, waypoints.length + 1, true);
     const headerHex = "0000000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
     for (let i = 4; i < HEADER_SIZE; i++) view.setUint8(i, parseInt(headerHex.substr(i * 2, 2), 16));
+    
     waypoints.forEach((wp, i) => {
         let offset = HEADER_SIZE + (i * RECORD_SIZE);
         if (i > 0) {
@@ -233,40 +279,45 @@ function exportData() {
         view.setFloat64(offset + 72, wp.lat, true);
         view.setFloat64(offset + 80, wp.lon, true);
     });
+    
     let dOff = HEADER_SIZE + (waypoints.length * RECORD_SIZE);
     view.setUint32(dOff + 0, Math.round(waypoints[waypoints.length-1].elev / 10) * 10, true);
     view.setUint16(dOff + 16, waypoints[waypoints.length-1].bearing, true);
     view.setUint8(dOff + 64, 0x0A);
+    
     let crc = 0xFFFFFFFF, cTable = [];
     for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1)); cTable[n]=c; }
     const bytes = new Uint8Array(buffer);
     for (let i = 0; i < TOTAL_SIZE - 8; i++) crc = (crc >>> 8) ^ cTable[(crc ^ bytes[i]) & 0xFF];
     view.setUint32(TOTAL_SIZE - 8, (crc ^ 0xFFFFFFFF) >>> 0, true);
+    
     const blob = new Blob([buffer], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "user.dat";
-    a.click();
+    downloadBlob(blob, "user.dat");
 }
 
 function exportKML() {
     const rows = document.querySelectorAll('#wpTable tbody tr');
-    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>Exported Waypoints</name>`;
+    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document><name>Export</name>`;
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        if (inputs[0].value.trim()) {
-            kml += `\n<Placemark><name>${inputs[0].value}</name><description>${inputs[1].value}</description><Point><coordinates>${inputs[3].value},${inputs[2].value},${inputs[4].value}</coordinates></Point></Placemark>`;
-        }
+        if (inputs[0].value) kml += `\n<Placemark><name>${inputs[0].value}</name><Point><coordinates>${inputs[3].value},${inputs[2].value}</coordinates></Point></Placemark>`;
     });
-    kml += `\n</Document>\n</kml>`;
-    const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "waypoints.kml";
-    a.click();
+    kml += `\n</Document></kml>`;
+    downloadFile(kml, "waypoints.kml", "application/vnd.google-earth.kml+xml");
 }
 
-function addRow() { populateTable([{ id: "", name: "", lat: "", lon: "", elev: 0, brg: 0 }]); }
+function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type: type });
+    downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 </script>
 </body>
 </html>
