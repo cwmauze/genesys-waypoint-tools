@@ -26,5 +26,10 @@ This tool acts as a universal translator between data software (Excel, Google Ea
 * [Official Genesys IDU Pilot Guides (Moog)](https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html)
 * [Garmin GTN User Waypoint File Creation & Import Guide](https://support.garmin.com/en-US/?faq=3mcdU37gXi88ipwjJIxJo7)
 
+## 🗺️ Roadmap (To-Do)
+* **Data Validation:** Highlight out-of-range coordinates.
+* **Nomenclature Warnings:** Visual indicators for identifiers exceeding character limits.
+* **Duplicate Detection:** Identify and flag duplicate waypoint IDs.
+
 ---
 *Release Version: 5.46*
