@@ -41,7 +41,7 @@
     <div class="instructions">
         <strong>Mission Control:</strong><br>
         • <strong>Upload:</strong> Use a <code>user.dat</code> to edit existing data, or a <code>.csv</code> to import new data.<br>
-        • <strong>Edit:</strong> Modify the table directly. Rows are automatically sorted alphabetically.<br>
+        • <strong>Edit:</strong> Modify the table directly. Rows are automatically sorted alphabetically upon export.<br>
         • <strong>Export:</strong> Download the binary for the aircraft or copy the table to your clipboard.
     </div>
 
@@ -82,7 +82,7 @@
     </div>
 
     <div class="footer">
-        Aviation Data Systems | Logic v5.28 | Production Ready
+        Aviation Data Systems | Logic v5.29 | Production Ready
     </div>
 </div>
 
@@ -99,6 +99,8 @@ function toggleTheme() {
 function removeAll() {
     if (confirm("Clear all waypoints?")) {
         document.querySelector('#wpTable tbody').innerHTML = '';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('bulkInput').value = '';
     }
 }
 
@@ -123,35 +125,31 @@ function processData() {
 
 function decodeBinary(buffer) {
     const view = new DataView(buffer);
-    const count = view.getUint32(0, true) - 1; // Subtract the dummy record
+    const count = view.getUint32(0, true) - 1; 
     let waypoints = [];
 
     for (let i = 0; i < count; i++) {
         let offset = HEADER_SIZE + (i * RECORD_SIZE);
         let nextOffset = offset + RECORD_SIZE;
 
-        // "Unshift" Logic: Pull data for THIS waypoint from the NEXT record
         let elev = view.getUint32(nextOffset + 0, true);
         let brg = view.getUint16(nextOffset + 16, true);
 
-        // Read strings
         let id = "", name = "";
         for (let j = 0; j < 5; j++) {
             let char = view.getUint8(offset + 24 + j);
-            if (char > 0 && char !== 32) id += String.fromCharCode(char);
+            if (char > 32) id += String.fromCharCode(char);
         }
         for (let j = 0; j < 12; j++) {
             let char = view.getUint8(offset + 33 + j);
-            if (char > 0 && char !== 32) name += String.fromCharCode(char);
+            if (char > 32) name += String.fromCharCode(char);
         }
 
         waypoints.push({
-            id: id.trim(),
-            name: name.trim(),
+            id: id, name: name,
             lat: view.getFloat64(offset + 72, true).toFixed(5),
             lon: view.getFloat64(offset + 80, true).toFixed(5),
-            elev: elev,
-            brg: brg
+            elev: elev, brg: brg
         });
     }
     populateTable(waypoints);
@@ -187,15 +185,17 @@ function populateTable(waypoints) {
     });
 }
 
-function copyToClipboard() {
-    const rows = document.querySelectorAll('#wpTable tbody tr');
-    let csv = "Identifier,Name,Latitude,Longitude,Elevation,Bearing\n";
-    rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        csv += Array.from(inputs).map(i => i.value).join(",") + "\n";
-    });
-    navigator.clipboard.writeText(csv).then(() => alert("Table copied as CSV!"));
+function addRow() {
+    const tbody = document.querySelector('#wpTable tbody');
+    const row = tbody.insertRow();
+    for (let i = 0; i < 6; i++) {
+        let input = document.createElement('input');
+        input.type = (i > 1) ? 'number' : 'text';
+        if (i === 2 || i === 3) input.step = 'any';
+        row.insertCell(i).appendChild(input);
+    }
 }
 
-// ... (addRow and exportData functions remain the same as v5.27) ...
-</script>
+function copyToClipboard() {
+    const rows = document.querySelectorAll('#wpTable tbody tr');
+    let csv = "Identifier,Name,Latitude,Longitude,
