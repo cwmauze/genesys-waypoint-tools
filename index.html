@@ -8,13 +8,14 @@
         :root {
             --bg: #18191a; --card: #242526; --text: #e4e6eb; --border: #3e4042;
             --primary: #478df5; --secondary: #3a3b3c; --danger: #fb6161;
+            --success: #28a745; --garmin: #007cc3;
         }
         [data-theme="light"] {
             --bg: #f0f2f5; --card: #ffffff; --text: #1c1e21; --border: #dadde1;
             --primary: #1a73e8; --secondary: #e4e6eb; --danger: #fa3e3e;
         }
         body { font-family: -apple-system, sans-serif; margin: 20px; background: var(--bg); color: var(--text); transition: background 0.3s; }
-        .container { max-width: 950px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .container { max-width: 1000px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
         h2 { margin: 0; color: var(--primary); }
         .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
@@ -27,10 +28,8 @@
         .btn-secondary { background: var(--secondary); color: var(--text); }
         .btn-danger { background: var(--danger); color: white; }
         .footer { margin-top: 30px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid var(--border); padding-top: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; }
         .action-bar { background: var(--secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         a { color: var(--primary); text-decoration: none; }
-        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -43,28 +42,29 @@
     
     <div class="instructions">
         <strong>How to use:</strong><br>
-        1. Select a file (.dat, .csv, .txt, or .kml) or paste rows from your master spreadsheet.<br>
-        2. Click <strong>"Load Data"</strong> to populate the table.<br>
-        3. Verify the waypoint data and click <strong>"Download USER.DAT"</strong> or <strong>"Export KML"</strong>.<br>
+        1. Select a file (.dat, .wpt, .csv, .txt, .kml) or paste rows from your data software.<br>
+        2. Click <strong>"Load Data"</strong> to populate the table. (Garmin CSV formats are auto-detected).<br>
+        3. Click the desired export button to generate your flight planning data.<br>
         <span style="font-size: 12px; opacity: 0.8;">Reference: <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Official Genesys IDU Pilot Guides</a></span>
     </div>
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 250px;">
-            <label>Load File (.dat, .csv, .txt, .kml)</label>
-            <input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml">
+            <label style="display:block;margin-bottom:5px;font-size:13px;font-weight:600;">Load File</label>
+            <input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt">
         </div>
         <div style="flex: 2; min-width: 300px;">
-            <label>Bulk Paste Rows</label>
+            <label style="display:block;margin-bottom:5px;font-size:13px;font-weight:600;">Bulk Paste Rows</label>
             <textarea id="bulkInput" style="width:100%; height:40px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text);" placeholder="Paste spreadsheet rows..."></textarea>
         </div>
     </div>
     
     <div class="action-bar">
-        <button id="loadBtn" class="btn btn-primary" onclick="processData()">Load Data</button>
-        <button class="btn btn-primary" onclick="exportData()" style="background-color: #28a745;">Download USER.DAT</button>
+        <button class="btn btn-primary" onclick="processData()">Load Data</button>
+        <button class="btn" onclick="exportData()" style="background-color: var(--success); color: white;">Download USER.DAT (Genesys)</button>
+        <button class="btn" onclick="exportGarmin()" style="background-color: var(--garmin); color: white;">Download user.wpt (Garmin)</button>
         <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1; color: white;">Export KML</button>
-        <button class="btn btn-secondary" onclick="copyToClipboard()">Copy to Clipboard (CSV)</button>
+        <button class="btn btn-secondary" onclick="copyToClipboard()">Copy CSV</button>
         <button class="btn btn-danger" onclick="removeAll()">Clear All</button>
     </div>
     
@@ -82,19 +82,17 @@
         <tbody></tbody>
     </table>
 
-    <div style="display: flex; justify-content: space-between; margin-top: 20px;">
-        <button class="btn btn-secondary" onclick="addRow()">+ Add Single Row</button>
-        <button class="btn btn-primary" onclick="exportData()" style="opacity: 0.7;">Download USER.DAT (Copy)</button>
-    </div>
+    <button class="btn btn-secondary" onclick="addRow()">+ Add Single Row</button>
 
     <div class="footer">
-        Aviation Data Systems | Logic v5.39 | Compatible with IDU-450, IDU-680, IDU-1380
+        Version 5.45 | Compatible with IDU-450, IDU-680, IDU-1380 & Garmin GTN Series
     </div>
 </div>
 
 <script>
 const RECORD_SIZE = 88;
 const HEADER_SIZE = 72;
+const MAX_WAYPOINTS = 998;
 
 function toggleTheme() {
     const body = document.body;
@@ -108,13 +106,7 @@ function toggleTheme() {
     }
 }
 
-function removeAll() {
-    if (confirm("Clear all waypoints?")) {
-        document.querySelector('#wpTable tbody').innerHTML = '';
-        document.getElementById('fileInput').value = '';
-        document.getElementById('bulkInput').value = '';
-    }
-}
+function removeAll() { if (confirm("Clear all waypoints?")) { document.querySelector('#wpTable tbody').innerHTML = ''; } }
 
 function processData() {
     const fileInput = document.getElementById('fileInput');
@@ -135,60 +127,16 @@ function processData() {
         }
     } else if (bulkInput) {
         parseText(bulkInput);
-    } else { alert("Please select a file or paste data."); }
+    }
 }
 
-function parseKML(xmlText) {
-    try {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-        const placemarks = xmlDoc.getElementsByTagName("Placemark");
-        let waypoints = [];
-        for (let i = 0; i < placemarks.length; i++) {
-            const pm = placemarks[i];
-            const name = pm.getElementsByTagName("name")[0]?.textContent || "WP" + i;
-            const coordsNode = pm.getElementsByTagName("coordinates")[0];
-            if (coordsNode) {
-                const parts = coordsNode.textContent.trim().split(",");
-                if (parts.length >= 2) {
-                    waypoints.push({
-                        id: name.substring(0, 5).toUpperCase().replace(/\s/g, ''),
-                        name: name.substring(0, 12).toUpperCase(),
-                        lat: parseFloat(parts[1]).toFixed(5),
-                        lon: parseFloat(parts[0]).toFixed(5),
-                        elev: Math.round(parseFloat(parts[2] || 0)),
-                        brg: 0
-                    });
-                }
-            }
-        }
-        populateTable(waypoints);
-    } catch (e) { alert("KML Parse Error: " + e.message); }
-}
-
-function exportKML() {
-    const rows = document.querySelectorAll('#wpTable tbody tr');
-    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>Genesys Export</name>`;
-    rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        if (inputs[0].value.trim()) {
-            kml += `\n    <Placemark>\n      <name>${inputs[0].value}</name>\n      <description>${inputs[1].value}</description>\n      <Point>\n        <coordinates>${inputs[3].value},${inputs[2].value},${inputs[4].value}</coordinates>\n      </Point>\n    </Placemark>`;
-        }
-    });
-    kml += `\n  </Document>\n</kml>`;
-    const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "waypoints.kml";
-    a.click(); URL.revokeObjectURL(url);
-}
-
-function decodeBinary(buffer) {
-    try {
-        const view = new DataView(buffer);
-        const count = view.getUint32(0, true) - 1; 
-        let waypoints = [];
-        for (let i = 0; i < count; i++) {
-            let offset = HEADER_SIZE + (i * RECORD_SIZE);
-            let nextOffset = offset + RECORD_SIZE;
-            let elev = view.getUint3
+function parseText(text) {
+    const lines = text.split(/\r?\n/);
+    let waypoints = [];
+    lines.forEach((line, index) => {
+        const cols = line.split(/[,\t]/).map(c => c.trim().replace(/"/g, ''));
+        if (!cols[0] || (index === 0 && isNaN(parseFloat(cols[2])))) return;
+        
+        // Smart Detection: Garmin (4 cols) vs Genesys (6 cols)
+        if (cols.length === 4) {
+            waypoints
