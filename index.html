@@ -25,7 +25,8 @@
         .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; table-layout: fixed; }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
-        th { background-color: var(--secondary); font-weight: 600; font-size: 12px; }
+        th { background-color: var(--secondary); font-weight: 600; font-size: 11px; vertical-align: top; }
+        th span { display: block; font-size: 9px; font-weight: 400; opacity: 0.8; margin-top: 2px; text-transform: uppercase; }
         input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: var(--card); color: var(--text); box-sizing: border-box; }
         .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: all 0.2s ease; text-align: center; color: white; display: inline-block; vertical-align: middle; }
         .btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
@@ -51,16 +52,16 @@
     <div class="header-row">
         <div>
             <h2>Genesys Aerosystems IDU Waypoint Loader</h2>
-            <span class="version-subtitle">Build v5.80</span>
+            <span class="version-subtitle">Build v5.86</span>
         </div>
         <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
     </div>
     
     <div class="instructions">
         <strong>Pre-Flight Data Prep:</strong><br>
-        1. Select a file (.dat, .csv, .wpt, .kml) OR paste rows from data software. The table will populate automatically.<br>
-        2. Parser normalizes <strong>DD</strong>, <strong>DDM</strong>, and <strong>DMS</strong> formats on the fly.<br>
-        3. Verify the table and export. <em>Note: Long identifiers will be shortened on export.</em>
+        1. Select a file (.dat, .csv, .wpt, .kml) or paste rows. Table populates automatically.<br>
+        2. Parser normalizes coordinates but <strong>preserves case</strong> in the table for manual editing.<br>
+        3. Hardware exports (Genesys/Garmin) will automatically normalize to UPPERCASE for compliance.
         <div style="font-size: 12px; margin-top: 8px;">
             <strong>References:</strong> 
             <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Genesys IDU Guides</a> | 
@@ -83,11 +84,11 @@
 
     <div class="action-bar">
         <span style="font-size: 12px; font-weight: bold; color: var(--primary); margin-right: 10px;">EXPORT:</span>
-        <button class="btn" onclick="checkAndExportGenesys()" style="background-color: var(--success);">Download user.dat <span>GENESYS BINARY</span></button>
-        <button class="btn" onclick="checkAndExportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GTN</span></button>
-        <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Download CSV <span>COMPLETE FLIGHT (EXP)</span></button>
-        <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on Map <span>STREET/SAT/AIR</span></button>
-        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1;">Export KML <span>GOOGLE EARTH PRO</span></button>
+        <button class="btn" onclick="checkAndExportGenesys()" style="background-color: var(--success);">Download user.dat <span>GENESYS IDU</span></button>
+        <button class="btn" onclick="checkAndExportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GNS / GTN</span></button>
+        <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Download CSV <span>COMPLETE FLIGHT - EXPERIMENTAL</span></button>
+        <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on Map <span>STREET / SAT / SECTIONAL</span></button>
+        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1;">Export KML <span>GOOGLE EARTH / FOREFLIGHT</span></button>
         <div style="flex-grow: 1;"></div>
         <button class="btn btn-danger" onclick="removeAll()">CLEAR ALL DATA</button>
     </div>
@@ -95,12 +96,12 @@
     <table id="wpTable">
         <thead>
             <tr>
-                <th style="width: 15%;">Identifier</th>
-                <th style="width: 21%;">Name</th>
+                <th style="width: 14%;">Identifier</th>
+                <th style="width: 20%;">Name</th>
                 <th style="width: 15%;">Latitude</th>
                 <th style="width: 15%;">Longitude</th>
-                <th style="width: 17%;">Elevation (Ft)</th>
-                <th style="width: 17%;">Bearing</th>
+                <th style="width: 16%;">Elevation (Ft)</th>
+                <th style="width: 20%;">Approach Bearing<span>Genesys IDU Only</span></th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -148,7 +149,6 @@ function removeAll() {
     document.getElementById('fileInput').value = '';
 }
 
-/* Auto-Processing Logic */
 function processFile() {
     const f = document.getElementById('fileInput');
     if (f.files.length > 0) {
