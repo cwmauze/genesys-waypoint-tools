@@ -15,12 +15,16 @@ This tool acts as a universal translator between data software (Excel, Google Ea
 ## 📋 Specifications
 * **Genesys Capacity:** Supports up to 998 user-defined waypoints.
 * **Garmin Capacity:** Formatted for GTN 650/750 compatibility.
-* **Automated Logic:** Manages alphabetical sorting and nomenclature length limits.
+* **Automated Logic:** Manages alphabetical sorting and nomenclature length limits (5-char for Genesys, 6-char for Garmin).
 
 ## 🚀 Operation Instructions
 1.  **Load Data:** Select your file or paste rows from your data software.
 2.  **Verify:** Confirm the coordinates and supplemental data in the table.
 3.  **Download:** Click the descriptive button for your specific avionics suite (Genesys or Garmin).
+
+## 🔗 Technical References
+* [Official Genesys IDU Pilot Guides (Moog)](https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html)
+* [Garmin GTN User Waypoint File Creation & Import Guide](https://support.garmin.com/en-US/?faq=3mcdU37gXi88ipwjJIxJo7)
 
 ---
 *Release Version: 5.46*
