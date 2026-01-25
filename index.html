@@ -28,21 +28,20 @@
         .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); font-size: 14px; line-height: 1.5; height: 100%; box-sizing: border-box; }
         .session-status-card { background: var(--secondary); padding: 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; height: 100%; box-sizing: border-box; }
         
-        /* FLUSH-LOCK STICKY SYSTEM */
         .action-bar { 
             background: var(--card) !important;
             padding: 15px; border-radius: 8px; margin-bottom: 20px; 
             display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
             position: sticky; top: 0; z-index: 1002; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            border-bottom: 3px solid var(--primary); /* Reinforced primary border */
+            border-bottom: 3px solid var(--primary);
         }
 
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: middle; }
         
         thead th { 
-            background-color: var(--secondary) !important; /* Solid mask */
+            background-color: var(--secondary) !important;
             font-weight: 600; font-size: 11px; vertical-align: top; 
             user-select: none; line-height: 1.2; 
             position: sticky; 
@@ -60,8 +59,8 @@
         .separator { margin: 0 8px; color: #888; font-weight: bold; pointer-events: none; }
         
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
-        .modal-content { background: var(--card); margin: 10% auto; padding: 25px; border: 1px solid var(--border); width: 60%; border-radius: 12px; color: var(--text); }
-        .modal-body { max-height: 500px; overflow-y: auto; font-size: 13px; line-height: 1.6; }
+        .modal-content { background: var(--card); margin: 5% auto; padding: 25px; border: 1px solid var(--border); width: 60%; border-radius: 12px; color: var(--text); max-height: 80vh; display: flex; flex-direction: column; }
+        .modal-body { overflow-y: auto; font-size: 13px; line-height: 1.6; padding-right: 10px; flex-grow: 1; }
         
         #mapOverlay { display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; background: var(--card); z-index: 3000; border: 2px solid var(--primary); border-radius: 12px; }
         #map { width: 100%; height: calc(100% - 60px); }
@@ -73,8 +72,8 @@
     <div class="header-row">
         <div>
             <h2>Genesys Aerosystems IDU Waypoint Loader</h2>
-            <span class="version-subtitle" onclick="showHistory()">Build v6.42 (View History)</span>
-            <a href="mailto:cwmauze@users.noreply.github.com?subject=IDU%20Tool%20Feedback" class="contact-link">Contact / Feedback</a>
+            <span class="version-subtitle" onclick="showHistory()">Build v7.4.1 (View History)</span>
+            <a href="mailto:cistern_fob3m@icloud.com?subject=IDU%20Tool%20Feedback" class="contact-link">Contact / Feedback</a>
         </div>
         <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
     </div>
@@ -83,12 +82,7 @@
         <div class="instructions">
             <strong>Pre-Flight Data Prep:</strong><br>
             1. Select a file (<strong>Genesys user.dat</strong>, <strong>Garmin user.wpt</strong>, <strong>.csv</strong>, <strong>.kml</strong>) OR paste bulk data from spreadsheet software. The table will populate automatically.<br>
-            2. Parser normalizes the following formats on the fly:
-            <ul style="margin: 5px 0; padding-left: 20px;">
-                <li><strong>DD:</strong> Decimal Degrees (e.g., 35.1234)</li>
-                <li><strong>DDM:</strong> Degrees Decimal Minutes (e.g., 35° 07.40' N)</li>
-                <li><strong>DMS:</strong> Degrees Minutes Seconds (e.g., 35° 07' 24" N)</li>
-            </ul>
+            2. Parser normalizes: <strong>DD</strong> (35.1234), <strong>DDM</strong> (35° 07.40' N), <strong>DMS</strong> (35° 07' 24" N).<br>
             3. Verify the table and export.
             <div style="font-size: 11px; margin-top: 8px;">
                 <strong>References:</strong> 
@@ -104,20 +98,19 @@
             </div>
             <div style="margin-bottom:6px; display:flex; justify-content:space-between;"><span>Last Action:</span> <span id="last-action">Ready</span></div>
             <div style="margin-bottom:6px; display:flex; justify-content:space-between;"><span>Current Total:</span> <span id="wp-count-display">0</span></div>
-            <div style="margin-bottom:6px; display:flex; justify-content:space-between;"><span>Active Source:</span> <span id="active-source">None</span></div>
             <div style="display:flex; justify-content:space-between;"><span>System Status:</span> <span id="sys-status" class="status-ready">● Ready</span></div>
         </div>
     </div>
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-        <div style="flex: 1;"><label style="font-size: 13px; font-weight: 600;">Option A: Load File</label><input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt" onchange="processFile()"></div>
+        <div style="flex: 1;"><label style="font-size: 13px; font-weight: 600;">Option A: Load File</label><input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt,.xml" onchange="processFile()"></div>
         <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk Paste</label><textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..." oninput="debouncePaste()"></textarea></div>
     </div>
 
     <div class="action-bar" id="actionBar">
         <span style="font-size: 12px; font-weight: bold; color: var(--primary); margin-right: 10px;">EXPORT:</span>
-        <button class="btn" onclick="checkAndExportGenesys()" style="background-color: var(--success);">Download user.dat <span>GENESYS IDU</span></button>
-        <button class="btn" onclick="checkAndExportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GNS / GTN</span></button>
+        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);">Download user.dat <span>GENESYS IDU</span></button>
+        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GNS / GTN</span></button>
         <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Download CSV <span>COMPLETE FLIGHT</span></button>
         <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on Map <span>STREET / SAT / SECTIONAL</span></button>
         <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1; color: white;">Export KML <span>GOOGLE EARTH</span></button>
@@ -144,6 +137,7 @@
     <div style="display: flex; gap: 10px; margin-top: 10px;">
         <button class="btn btn-secondary" onclick="addRows(1)">+ Add 1 Row</button>
         <button class="btn btn-secondary" onclick="addRows(5)">+ Add 5 Rows</button>
+        <button class="btn btn-secondary" onclick="addRows(10)">+ Add 10 Rows</button>
     </div>
 
     <div class="footer" style="margin-top: 40px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid var(--border); padding-top: 20px;">
@@ -154,11 +148,13 @@
         <div class="modal-content">
             <h3 style="margin-top:0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Project Version History</h3>
             <div class="modal-body" id="modal-body">
-                <strong>v6.42:</strong> Implemented Flush-Lock dynamic alignment with 1px border compensation.<br>
-                <strong>v6.41:</strong> Added ResizeObserver for responsive sticky header tracking.<br>
-                <strong>v6.40:</strong> Fail-Safe sticky lock with solid shielding.<br>
-                <strong>v6.37:</strong> Fixed user.dat binary import functionality.<br>
-                <strong>v6.36:</strong> Restored "Complete Flight" CSV button; Locked Action Bar baseline.<br>
+                <strong>v7.4.1:</strong> Hardened KML import to handle whitespace; Updated contact info.<br>
+                <strong>v7.4:</strong> Robust KML parser; Validation updates (Genesys 12-char / Garmin 25-char limits).<br>
+                <strong>v7.3:</strong> Updated validation logic for cockpit display constraints.<br>
+                <strong>v7.2:</strong> Restored pre-flight warnings for capacity and identifier length.<br>
+                <strong>v7.1.6:</strong> Fixed VFR Sectional provider (Switched to FAA ArcGIS).<br>
+                <strong>v7.1 Stable:</strong> Core logic synchronized with Shift/CRC/64-bit engine.<br>
+                <strong>v6.00:</strong> Complete UI overhaul with Action Bar and Sticky Headers.<br>
                 <strong>v5.00:</strong> Initial release of reverse-engineered binary export.
             </div>
             <button class="btn btn-secondary" style="margin-top:20px" onclick="closeHistory()">Close</button>
@@ -173,17 +169,15 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const RECORD_SIZE = 88, HEADER_SIZE = 72, TOTAL_SIZE = 88016;
+const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016;
 let leafletMap = null, markerLayer = null, pasteTimer;
 const tbody = document.getElementById('table-body');
 
-/* FLUSH-LOCK STICKY OBSERVER */
 function initStickyObserver() {
     const actionBar = document.getElementById('actionBar');
     const headerCells = document.querySelectorAll('#tableHeader th');
     const observer = new ResizeObserver(entries => {
         for (let entry of entries) {
-            // Using precise border-box height + compensation for primary blue border
             const height = entry.borderBoxSize[0].blockSize - 2; 
             headerCells.forEach(th => th.style.top = height + 'px');
         }
@@ -192,13 +186,10 @@ function initStickyObserver() {
 }
 
 function startClock() { setInterval(() => { document.getElementById('local-clock').innerText = new Date().toLocaleTimeString('en-GB', { hour12: false }); }, 1000); }
-
-function logAction(action, source, statusText) {
-    const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
-    document.getElementById('last-action').innerText = action + " (" + time + ")";
-    if (source) document.getElementById('active-source').innerText = source;
-    document.getElementById('wp-count-display').innerText = tbody.querySelectorAll('tr').length;
-    if (statusText) document.getElementById('sys-status').innerText = "● " + statusText;
+function logAction(action, source, statusText) { 
+    document.getElementById('last-action').innerText = action + " (" + new Date().toLocaleTimeString('en-GB', { hour12: false }) + ")"; 
+    document.getElementById('wp-count-display').innerText = tbody.querySelectorAll('tr').length; 
+    if(statusText) document.getElementById('sys-status').innerText = "● " + statusText;
 }
 
 function processFile() {
@@ -207,7 +198,7 @@ function processFile() {
         const file = f.files[0], reader = new FileReader(), ext = file.name.toLowerCase().split('.').pop();
         reader.onload = e => {
             if (ext === 'dat') decodeBinary(e.target.result);
-            else if (ext === 'kml') parseKML(e.target.result);
+            else if (ext === 'kml' || ext === 'xml') parseKML(e.target.result);
             else parseText(e.target.result);
             logAction("File Loaded", file.name, "Success");
         };
@@ -215,38 +206,220 @@ function processFile() {
     }
 }
 
+// v7.1 IMPORT
 function decodeBinary(buf) {
-    const v = new DataView(buf), count = v.getUint32(0, true) - 1, wps = [];
+    const v = new DataView(buf);
+    const count = v.getUint32(0, true);
+    const actualRecords = Math.floor((buf.byteLength - HEADER_SIZE) / RECORD_SIZE);
+    
+    if (count <= 0 || actualRecords <= 0) { alert("File appears empty or invalid."); return; }
+
+    const wps = [];
+    
     for (let i = 0; i < count; i++) {
-        let off = HEADER_SIZE + (i * RECORD_SIZE), id = "", nm = "";
-        for (let j = 0; j < 5; j++) id += String.fromCharCode(v.getUint8(off + 24 + j));
-        for (let j = 0; j < 12; j++) nm += String.fromCharCode(v.getUint8(off + 33 + j));
+        let off = HEADER_SIZE + (i * RECORD_SIZE);
+        let id = "";
+        for (let j = 0; j < 9; j++) { let c = v.getUint8(off + 24 + j); if (c !== 0) id += String.fromCharCode(c); }
+        let nm = "";
+        for (let j = 0; j < 23; j++) { let c = v.getUint8(off + 33 + j); if (c !== 0) nm += String.fromCharCode(c); }
+        
         wps.push({ 
             id: id.trim(), name: nm.trim(), 
             lat: v.getFloat64(off + 72, true).toFixed(6), 
             lon: v.getFloat64(off + 80, true).toFixed(6), 
-            elev: v.getUint32(off + RECORD_SIZE, true), 
-            brg: v.getUint16(off + RECORD_SIZE + 16, true) 
+            elev: 0, brg: 0 
         });
+        
+        if (i > 0) {
+            wps[i-1].elev = v.getUint32(off + 0, true);
+            wps[i-1].brg = v.getUint16(off + 16, true);
+        }
     }
+    
+    if (actualRecords > count && wps.length > 0) {
+        let off = HEADER_SIZE + (count * RECORD_SIZE);
+        wps[wps.length - 1].elev = v.getUint32(off + 0, true);
+        wps[wps.length - 1].brg = v.getUint16(off + 16, true);
+    }
+    
     populateTable(wps);
 }
 
-function parseKML(xmlString) {
-    let wps = [];
-    const placemarkRegex = /<Placemark>([\s\S]*?)<\/Placemark>/g;
-    let match;
-    while ((match = placemarkRegex.exec(xmlString)) !== null) {
-        const content = match[1], nameMatch = /<name>([\s\S]*?)<\/name>/.exec(content), coordMatch = /<coordinates>([\s\S]*?)<\/coordinates>/.exec(content);
-        if (coordMatch) {
-            const coords = coordMatch[1].trim().split(/[\s,]+/);
-            if (coords.length >= 2) {
-                const id = nameMatch ? nameMatch[1].trim() : "WP";
-                wps.push({ id: id, name: id, lat: parseFloat(coords[1]).toFixed(6), lon: parseFloat(coords[0]).toFixed(6), elev: 0, brg: 0 });
-            }
-        }
+// v7.4 GENESYS Validation (12 Char Limit)
+function validateAndExportGenesys() {
+    const rows = tbody.querySelectorAll('tr');
+    const MAX_CAPACITY = 998;
+    const MAX_ID_LEN = 5;
+    const MAX_NAME_LEN = 12; // Genesys Display Limit
+    
+    if (rows.length > MAX_CAPACITY) {
+        alert(`Capacity Warning:\nThis list contains ${rows.length} waypoints.\nThe IDU system can only reliably load ${MAX_CAPACITY}.`);
     }
-    populateTable(wps);
+
+    let longIds = [], longNames = [];
+    rows.forEach(r => {
+        const inp = r.querySelectorAll('input');
+        const id = inp[0].value.trim();
+        const name = inp[1].value.trim();
+        if (id.length > MAX_ID_LEN) longIds.push(id);
+        if (name.length > MAX_NAME_LEN) longNames.push(name);
+    });
+
+    let msg = "";
+    if (longIds.length > 0) msg += `Identifier Warning (Genesys):\n${longIds.length} identifiers exceed 5 chars and will be truncated.\n(e.g. ${longIds.slice(0,3).join(", ")}...)\n\n`;
+    if (longNames.length > 0) msg += `Name Warning (Genesys):\n${longNames.length} names exceed 12 chars (cockpit display limit).\n(e.g. ${longNames.slice(0,3).join(", ")}...)\n\n`;
+
+    if (msg !== "" && !confirm(msg + "Proceed with export?")) return;
+    checkAndExportGenesys();
+}
+
+// v7.4 GARMIN Validation (25 Char Limit)
+function validateAndExportGarmin() {
+    const rows = tbody.querySelectorAll('tr');
+    const MAX_NAME_LEN = 25; // Garmin GTN Limit
+    
+    let longNames = [];
+    rows.forEach(r => {
+        const inp = r.querySelectorAll('input');
+        const name = inp[1].value.trim();
+        if (name.length > MAX_NAME_LEN) longNames.push(name);
+    });
+
+    if (longNames.length > 0) {
+        let msg = `Name Warning (Garmin):\n${longNames.length} names exceed 25 chars.\n(e.g. ${longNames.slice(0,3).join(", ")}...)\n\nProceed?`;
+        if (!confirm(msg)) return;
+    }
+    checkAndExportGarmin();
+}
+
+// v7.1 EXPORT Core (Genesys)
+function checkAndExportGenesys() {
+    const rows = [...tbody.querySelectorAll('tr')];
+    const headerHex = "9a01000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a000000000000004728a3b76555424027eadf08657853c0";
+    
+    let bytes = [];
+    let hBuf = new ArrayBuffer(HEADER_SIZE);
+    let hView = new DataView(hBuf);
+    hView.setUint32(0, rows.length, true);
+    for(let k=0; k<HEADER_SIZE; k++) {
+        if(k<4) bytes.push(hView.getUint8(k));
+        else bytes.push(parseInt(headerHex.substr(k*2,2), 16));
+    }
+    
+    rows.forEach((r, i) => {
+        const inp = r.querySelectorAll('input');
+        const id = inp[0].value.toUpperCase();
+        const nm = inp[1].value.toUpperCase();
+        const lat = parseFloat(inp[2].value);
+        const lon = parseFloat(inp[3].value);
+        
+        let elev = 0, brg = 0;
+        if (i > 0) {
+            const prevInp = rows[i-1].querySelectorAll('input');
+            elev = parseInt(prevInp[4].value) || 0;
+            brg = parseInt(prevInp[5].value) || 0;
+        }
+        
+        let buf = new ArrayBuffer(RECORD_SIZE);
+        let view = new DataView(buf);
+        view.setUint32(0, elev, true);
+        view.setUint16(16, brg, true);
+        
+        for(let j=0; j<9; j++) view.setUint8(24+j, (j<id.length)?id.charCodeAt(j):0);
+        for(let j=0; j<23; j++) view.setUint8(33+j, (j<nm.length)?nm.charCodeAt(j):0);
+        
+        view.setUint8(64, 0x0A);
+        view.setFloat64(72, lat, true);
+        view.setFloat64(80, lon, true);
+        
+        for(let k=0; k<RECORD_SIZE; k++) bytes.push(view.getUint8(k));
+    });
+    
+    if (rows.length > 0) {
+        const lastInp = rows[rows.length-1].querySelectorAll('input');
+        let lElev = parseInt(lastInp[4].value) || 0;
+        let lBrg = parseInt(lastInp[5].value) || 0;
+        let dBuf = new ArrayBuffer(RECORD_SIZE);
+        let dView = new DataView(dBuf);
+        dView.setUint32(0, lElev, true);
+        dView.setUint16(16, lBrg, true);
+        dView.setUint8(64, 0x0A);
+        for(let k=0; k<RECORD_SIZE; k++) bytes.push(dView.getUint8(k));
+    }
+    
+    while(bytes.length < TARGET_FILE_SIZE - 8) bytes.push(0);
+    
+    let crc = 0xFFFFFFFF;
+    const table = makeCRCTable();
+    for(let i=0; i<bytes.length; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
+    crc = (crc ^ 0xFFFFFFFF) >>> 0;
+    
+    let cBuf = new ArrayBuffer(4);
+    let cView = new DataView(cBuf);
+    cView.setUint32(0, crc, true);
+    for(let k=0; k<4; k++) bytes.push(cView.getUint8(k));
+    bytes.push(0,0,0,0);
+    
+    downloadBlob(new Blob([new Uint8Array(bytes)]), "user.dat");
+}
+
+function makeCRCTable(){let c;let t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
+
+// Garmin Export
+function checkAndExportGarmin() {
+    let csv = "Identifier,Name,Latitude,Longitude,Elevation,Comment\n";
+    tbody.querySelectorAll('tr').forEach(r => {
+        const i = r.querySelectorAll('input');
+        csv += `${i[0].value},${i[1].value},${i[2].value},${i[3].value},${i[4].value},Garmin GTN\n`;
+    });
+    downloadBlob(new Blob([csv], {type:'text/csv'}), "user.wpt");
+}
+
+// Complete Flight CSV
+function exportCompleteFlight() {
+    let csv = "ID,NAME,LAT,LON,ELEV,BRG\n";
+    tbody.querySelectorAll('tr').forEach(r => {
+        const i = r.querySelectorAll('input');
+        csv += `${i[0].value},${i[1].value},${i[2].value},${i[3].value},${i[4].value},${i[5].value}\n`;
+    });
+    downloadBlob(new Blob([csv], {type:'text/csv'}), "complete_flight.csv");
+}
+
+// KML Export
+function exportKML() {
+    let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Genesys Waypoints</name>`;
+    tbody.querySelectorAll('tr').forEach(r => {
+        const i = r.querySelectorAll('input');
+        kml += `<Placemark><name>${i[0].value}</name><description>${i[1].value}</description><Point><coordinates>${i[3].value},${i[2].value},${i[4].value}</coordinates></Point></Placemark>`;
+    });
+    kml += `</Document></kml>`;
+    downloadBlob(new Blob([kml], {type:'application/vnd.google-earth.kml+xml'}), "waypoints.kml");
+}
+
+// Map Logic (v7.1.6)
+function showMap() {
+    document.getElementById('mapOverlay').style.display = 'block';
+    if (!leafletMap) {
+        leafletMap = L.map('map').setView([39.8283, -98.5795], 4);
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: 'OSM'});
+        const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution: 'Esri'});
+        const sec = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {attribution: 'FAA'});
+        osm.addTo(leafletMap);
+        L.control.layers({ "Street Map": osm, "Satellite": sat, "VFR Sectional": sec }).addTo(leafletMap);
+    }
+    if (markerLayer) leafletMap.removeLayer(markerLayer);
+    markerLayer = L.layerGroup().addTo(leafletMap);
+    let bounds = [];
+    tbody.querySelectorAll('tr').forEach(r => {
+        const i = r.querySelectorAll('input');
+        const lat = parseFloat(i[2].value), lon = parseFloat(i[3].value);
+        if(!isNaN(lat) && !isNaN(lon)) {
+            L.marker([lat, lon]).addTo(markerLayer).bindPopup(`<b>${i[0].value}</b><br>${i[1].value}`);
+            bounds.push([lat, lon]);
+        }
+    });
+    if(bounds.length) leafletMap.fitBounds(bounds);
+    setTimeout(() => leafletMap.invalidateSize(), 200);
 }
 
 function parseText(t) {
@@ -259,6 +432,54 @@ function parseText(t) {
     populateTable(wps);
 }
 
+// v7.4.1 KML Parser (Hardened)
+function parseKML(xmlStr) {
+    try {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlStr, "text/xml");
+        const placemarks = xml.getElementsByTagName("Placemark");
+        if (placemarks.length === 0) { alert("No waypoints found in KML file."); return; }
+        
+        const wps = [];
+        for (let i = 0; i < placemarks.length; i++) {
+            const pm = placemarks[i];
+            
+            // Name Parsing
+            let name = "";
+            const nameTag = pm.getElementsByTagName("name")[0];
+            if (nameTag) name = nameTag.textContent.trim();
+            
+            // Description Parsing
+            let desc = "";
+            const descTag = pm.getElementsByTagName("description")[0];
+            if (descTag) desc = descTag.textContent.trim();
+            
+            // Coordinate Parsing (Deep search for Point->coordinates)
+            const point = pm.getElementsByTagName("Point")[0];
+            if (point) {
+                const coordTag = point.getElementsByTagName("coordinates")[0];
+                if (coordTag) {
+                    // Aggressive cleanup of KML whitespace/newlines
+                    const rawCoords = coordTag.textContent.replace(/\s+/g, '').trim(); 
+                    const parts = rawCoords.split(",");
+                    if (parts.length >= 2) {
+                        wps.push({
+                            id: name.substring(0,5), 
+                            name: (desc || name).substring(0,25),
+                            lat: parseFloat(parts[1]).toFixed(6),
+                            lon: parseFloat(parts[0]).toFixed(6),
+                            elev: parts[2] ? Math.round(parseFloat(parts[2])) : 0,
+                            brg: 0
+                        });
+                    }
+                }
+            }
+        }
+        populateTable(wps);
+        logAction("Imported " + wps.length + " KML waypoints", "KML", "Success");
+    } catch(e) { alert("KML Parsing Error: " + e.message); }
+}
+
 function parseCoordinate(i) {
     if (!i) return 0; let str = i.toString().trim().toUpperCase(), mult = (/[SW-]/.test(str)) ? -1 : 1;
     let parts = str.replace(/[^0-9. ]/g, ' ').trim().split(/\s+/).filter(p => p.length > 0), dd = 0;
@@ -268,14 +489,26 @@ function parseCoordinate(i) {
     return (dd * mult).toFixed(6);
 }
 
-function populateTable(wps) { tbody.innerHTML = ''; wps.forEach(wp => createRowCells(tbody.insertRow(), wp)); updateColumnVisibility(); }
+function populateTable(wps) {
+    tbody.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    wps.forEach(wp => {
+        const row = document.createElement('tr');
+        createRowCells(row, wp);
+        frag.appendChild(row);
+    });
+    tbody.appendChild(frag);
+    updateColumnVisibility();
+}
 
 function createRowCells(r, wp) {
-    r.insertCell(0).innerText = '⠿';
+    const c0 = r.insertCell(0); c0.innerText = '⠿';
     [wp.id, wp.name, wp.lat, wp.lon, wp.elev || '0', wp.brg || '0'].forEach((v, i) => {
-        const input = document.createElement('input'); input.value = v;
+        const cell = r.insertCell(i+1);
+        const input = document.createElement('input'); 
+        input.value = v;
         input.oninput = () => updateQuickLinks(r);
-        r.insertCell(i+1).appendChild(input);
+        cell.appendChild(input);
     });
     const linkCell = r.insertCell(7);
     linkCell.className = 'quick-links action-col'; 
@@ -283,53 +516,24 @@ function createRowCells(r, wp) {
 }
 
 function updateQuickLinks(r) {
-    const i = r.querySelectorAll('input'), lat = parseFloat(i[2].value), lon = parseFloat(i[3].value), c = r.querySelector('.quick-links');
+    const i = r.querySelectorAll('input');
+    if(i.length < 4) return;
+    const lat = parseFloat(i[2].value), lon = parseFloat(i[3].value), c = r.querySelector('.quick-links');
     if (!isNaN(lat) && !isNaN(lon)) {
         c.innerHTML = `<a href="http://googleusercontent.com/maps.google.com/search?q=${lat},${lon}" target="_blank">Google Maps</a> <span class="separator">|</span> <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a> <span class="separator">|</span> <a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight Web</a>`;
     } else c.innerHTML = '';
 }
 
-function checkAndExportGenesys() {
-    const rows = [...tbody.querySelectorAll('tr')];
-    let overLimit = rows.length > 998, longMeta = 0;
-    rows.forEach(r => {
-        const i = r.querySelectorAll('input');
-        if (i[0].value.length > 5 || i[1].value.length > 12) longMeta++;
-    });
-    let warnMsg = "";
-    if (overLimit) warnMsg += `● WARNING: You have ${rows.length} waypoints. Genesys IDU hardware only supports 998 user waypoints. This file may fail to load correctly.\n\n`;
-    if (longMeta > 0) warnMsg += `● NOTICE: ${longMeta} waypoints exceed character limits (Identifier: 5 / Name: 12) and will be shortened.\n\n`;
-    if (warnMsg && !confirm(warnMsg + "Proceed with export?")) return;
-    
-    let buf = new ArrayBuffer(TOTAL_SIZE), v = new DataView(buf);
-    v.setUint32(0, rows.length + 1, true);
-    rows.forEach((r, i) => {
-        const input = r.querySelectorAll('input');
-        let off = HEADER_SIZE + (i * RECORD_SIZE);
-        const id = input[0].value.substring(0,5).toUpperCase();
-        const name = input[1].value.substring(0,12).toUpperCase();
-        for (let j = 0; j < id.length; j++) v.setUint8(off + 24 + j, id.charCodeAt(j));
-        for (let j = 0; j < name.length; j++) v.setUint8(off + 33 + j, name.charCodeAt(j));
-        v.setFloat64(off + 72, parseFloat(input[2].value), true);
-        v.setFloat64(off + 80, parseFloat(input[3].value), true);
-    });
-    downloadBlob(new Blob([buf]), "user.dat");
-}
-
 function updateColumnVisibility() { document.querySelectorAll('.action-col').forEach(c => c.style.display = tbody.querySelectorAll('tr').length > 0 ? 'table-cell' : 'none'); }
 function downloadBlob(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
-function toggleTheme() { document.body.getAttribute('data-theme') === 'light' ? document.body.removeAttribute('data-theme') : document.body.setAttribute('data-theme', 'light'); }
+function toggleTheme() { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); }
 function removeAll() { if(confirm("Clear data?")) { tbody.innerHTML = ''; document.getElementById('fileInput').value = ''; updateColumnVisibility(); logAction("Cleared", "None", "Ready"); } }
 function debouncePaste() { clearTimeout(pasteTimer); pasteTimer = setTimeout(() => { const b = document.getElementById('bulkInput').value.trim(); if (b) parseText(b); }, 500); }
-function addRows(n) { for (let j = 0; j < n; j++) createRowCells(tbody.insertRow(), { id:'', name:'', lat:'', lon:'', elev:'0', brg:'0' }); updateColumnVisibility(); }
+function addRows(n) { const frag = document.createDocumentFragment(); for (let j = 0; j < n; j++) { const r = document.createElement('tr'); createRowCells(r, { id:'', name:'', lat:'', lon:'', elev:'0', brg:'0' }); frag.appendChild(r); } tbody.appendChild(frag); updateColumnVisibility(); }
 function showHistory() { document.getElementById('historyModal').style.display = 'block'; }
 function closeHistory() { document.getElementById('historyModal').style.display = 'none'; }
 function hideMap() { document.getElementById('mapOverlay').style.display = 'none'; }
 function hideContextMenu() {}
-function exportCompleteFlight() { /* Flight Plan CSV logic */ }
-function showMap() { /* Map preview logic */ }
-function checkAndExportGarmin() { /* logic */ }
-function exportKML() { /* logic */ }
 </script>
 </body>
 </html>
