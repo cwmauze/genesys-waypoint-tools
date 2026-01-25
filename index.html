@@ -26,6 +26,9 @@
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; overflow: hidden; vertical-align: middle; }
         th { background-color: var(--secondary); font-weight: 600; font-size: 11px; vertical-align: top; user-select: none; }
+        
+        .action-col { display: none; }
+        
         .sort-header { cursor: pointer; white-space: nowrap; }
         .sort-header:hover { background: var(--border); }
         .sort-icon { font-size: 10px; margin-left: 4px; opacity: 0.6; }
@@ -39,8 +42,10 @@
         .action-bar { background: var(--secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         a { color: var(--link); text-decoration: none; font-weight: 500; font-size: 10px; }
         a:hover { text-decoration: underline; }
-        .quick-links { display: flex; flex-direction: column; gap: 4px; font-size: 10px; }
-        .quick-links a { color: var(--link); white-space: nowrap; }
+        
+        .quick-links { font-size: 10px; white-space: nowrap; }
+        .separator { margin: 0 8px; color: #888; font-weight: bold; pointer-events: none; }
+
         .drag-handle { cursor: grab; color: #90949c; font-size: 18px; text-align: center; width: 30px; }
         .dragging { opacity: 0.5; background: var(--border) !important; }
         #context-menu { display: none; position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 2000; width: 180px; }
@@ -58,16 +63,21 @@
     <div class="header-row">
         <div>
             <h2>Genesys Aerosystems IDU Waypoint Loader</h2>
-            <span class="version-subtitle">Build v6.07</span>
+            <span class="version-subtitle">Build v6.12</span>
         </div>
         <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
     </div>
     
     <div class="instructions">
         <strong>Pre-Flight Data Prep:</strong><br>
-        1. Select a file (.dat, .csv, .wpt, .kml) OR paste rows from data software. The table will populate automatically.<br>
-        2. Parser normalizes <strong>DD</strong>, <strong>DDM</strong>, and <strong>DMS</strong> formats on the fly.<br>
-        3. Verify the table and export. <em>Note: Long identifiers will be shortened on export.</em>
+        1. Select a file (<strong>Genesys user.dat</strong>, <strong>Garmin user.wpt</strong>, <strong>.csv</strong>, <strong>.kml</strong>) OR paste bulk data from spreadsheet software. The table will populate automatically.<br>
+        2. Parser normalizes the following formats on the fly:
+        <ul style="margin: 5px 0; padding-left: 20px;">
+            <li><strong>DD:</strong> Decimal Degrees (e.g., 35.1234)</li>
+            <li><strong>DDM:</strong> Degrees Decimal Minutes (e.g., 35° 07.40' N)</li>
+            <li><strong>DMS:</strong> Degrees Minutes Seconds (e.g., 35° 07' 24" N)</li>
+        </ul>
+        3. Verify the table and export.
         <div style="font-size: 12px; margin-top: 8px;">
             <strong>References:</strong> 
             <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank">Genesys IDU Guides</a> | 
@@ -107,9 +117,9 @@
                 <th style="width: 17%;" class="sort-header" onclick="sortTable(2)">Name<span id="sort-2" class="sort-icon">↕</span></th>
                 <th style="width: 13%;">Latitude</th>
                 <th style="width: 13%;">Longitude</th>
-                <th style="width: 10%;">Elevation (Ft. MSL)</th>
+                <th style="width: 12%;">Elevation (Ft. MSL)</th>
                 <th style="width: 16%;">Approach bearing (Genesys)</th>
-                <th style="width: 18%;">Open waypoint in:</th>
+                <th style="width: 20%;" class="action-col">View waypoint in</th>
             </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -126,19 +136,6 @@
     </div>
 </div>
 
-<div id="context-menu">
-    <div class="menu-item" onclick="copyCoords()">📍 Copy Lat/Lon String</div>
-    <hr style="margin: 4px 0; border-top: 1px solid var(--border);">
-    <div class="menu-item danger" onclick="deleteRow()">🗑️ Delete Waypoint</div>
-</div>
-
-<div id="mapOverlay">
-    <div id="map"></div>
-    <div class="map-header">
-        <button class="btn btn-danger" onclick="hideMap()">Close Map</button>
-    </div>
-</div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
@@ -151,10 +148,17 @@ function toggleTheme() {
     b.getAttribute('data-theme') === 'light' ? b.removeAttribute('data-theme') : b.setAttribute('data-theme', 'light');
 }
 
+function updateColumnVisibility() {
+    const count = document.querySelectorAll('#table-body tr').length;
+    const cols = document.querySelectorAll('.action-col');
+    cols.forEach(c => c.style.display = count > 0 ? 'table-cell' : 'none');
+}
+
 function removeAll() { 
     document.getElementById('table-body').innerHTML = ''; 
     document.getElementById('bulkInput').value = '';
     document.getElementById('fileInput').value = '';
+    updateColumnVisibility();
 }
 
 const tbody = document.getElementById('table-body');
@@ -179,26 +183,24 @@ function sortTable(idx) {
     currentSort.index = idx;
     rows.sort((a, b) => {
         const vA = a.querySelectorAll('input')[idx-1].value.toUpperCase(), vB = b.querySelectorAll('input')[idx-1].value.toUpperCase();
-        return currentSort.asc ? vA.localeCompare(vB) : vB.localeCompare(vB);
+        return currentSort.asc ? vA.localeCompare(vB) : vB.localeCompare(vA);
     });
     rows.forEach(r => tbody.appendChild(r));
 }
 
-document.addEventListener('contextmenu', e => {
-    const r = e.target.closest('tr'); if (r && r.parentNode.id === 'table-body') { e.preventDefault(); activeRow = r; const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.pageX + 'px'; m.style.top = e.pageY + 'px'; }
-});
-
-function hideContextMenu() { document.getElementById('context-menu').style.display = 'none'; }
-function deleteRow() { if (activeRow) activeRow.remove(); }
-function copyCoords() { if (activeRow) { const i = activeRow.querySelectorAll('input'); const s = `${i[2].value}, ${i[3].value}`; navigator.clipboard.writeText(s).then(() => alert("Copied: " + s)); } }
+function deleteRow() { if (activeRow) { activeRow.remove(); updateColumnVisibility(); } }
 
 function updateQuickLinks(r) {
     const i = r.querySelectorAll('input'), lat = parseFloat(i[2].value), lon = parseFloat(i[3].value);
     const c = r.querySelector('.quick-links');
     if (!isNaN(lat) && !isNaN(lon)) {
-        c.innerHTML = `<a href="http://googleusercontent.com/maps.google.com/search?q=${lat},${lon}" target="_blank">Google Maps</a>
+        c.innerHTML = `
+            <a href="http://googleusercontent.com/maps.google.com/search?q=${lat},${lon}" target="_blank">Google Maps</a>
+            <span class="separator">|</span>
             <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a>
-            <a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight Web</a>`;
+            <span class="separator">|</span>
+            <a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight Web</a>
+        `;
     } else c.innerHTML = '';
 }
 
@@ -209,7 +211,10 @@ function createRowCells(r, wp) {
         input.oninput = () => updateQuickLinks(r);
         r.insertCell(i+1).appendChild(input);
     });
-    r.insertCell(7).className = 'quick-links'; updateQuickLinks(r);
+    const linkCell = r.insertCell(7);
+    linkCell.className = 'quick-links action-col'; 
+    updateQuickLinks(r);
+    updateColumnVisibility();
 }
 
 function parseText(t) {
@@ -333,7 +338,6 @@ function showMap() {
     markerLayer.clearLayers(); waypoints.forEach(wp => L.marker([wp.lat, wp.lon]).bindPopup(`<b>${wp.id}</b>`).addTo(markerLayer));
     leafletMap.fitBounds(markerLayer.getBounds(), { padding: [50, 50] });
 }
-function hideMap() { document.getElementById('mapOverlay').style.display = 'none'; }
 </script>
 </body>
 </html>
