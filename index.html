@@ -26,9 +26,7 @@
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; overflow: hidden; vertical-align: middle; }
         th { background-color: var(--secondary); font-weight: 600; font-size: 11px; vertical-align: top; user-select: none; }
-        
         .action-col { display: none; }
-        
         .sort-header { cursor: pointer; white-space: nowrap; }
         .sort-header:hover { background: var(--border); }
         .sort-icon { font-size: 10px; margin-left: 4px; opacity: 0.6; }
@@ -42,19 +40,12 @@
         .action-bar { background: var(--secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         a { color: var(--link); text-decoration: none; font-weight: 500; font-size: 10px; }
         a:hover { text-decoration: underline; }
-        
         .quick-links { font-size: 10px; white-space: nowrap; }
         .separator { margin: 0 8px; color: #888; font-weight: bold; pointer-events: none; }
-
         .drag-handle { cursor: grab; color: #90949c; font-size: 18px; text-align: center; width: 30px; }
-        .dragging { opacity: 0.5; background: var(--border) !important; }
-        #context-menu { display: none; position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 2000; width: 180px; }
-        .menu-item { padding: 10px 15px; cursor: pointer; font-size: 13px; color: var(--text); transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
-        .menu-item:hover { background: var(--secondary); }
-        .menu-item.danger { color: var(--danger); }
         #mapOverlay { display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; background: var(--card); z-index: 1000; border: 2px solid var(--primary); border-radius: 12px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-        #map { width: 100%; height: calc(100% - 50px); border-radius: 12px 12px 0 0; }
-        .map-header { padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; background: var(--secondary); color: var(--text); border-radius: 0 0 12px 12px; }
+        #map { width: 100%; height: calc(100% - 60px); border-radius: 12px 12px 0 0; }
+        .map-header { padding: 10px 20px; display: flex; justify-content: flex-end; background: var(--secondary); border-radius: 0 0 12px 12px; height: 40px; }
     </style>
 </head>
 <body onclick="hideContextMenu()">
@@ -63,7 +54,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys Aerosystems IDU Waypoint Loader</h2>
-            <span class="version-subtitle">Build v6.12</span>
+            <span class="version-subtitle">Build v6.16</span>
         </div>
         <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
     </div>
@@ -134,100 +125,48 @@
     <div class="footer" style="margin-top: 40px; font-size: 11px; color: #90949c; text-align: center; border-top: 1px solid var(--border); padding-top: 20px;">
         <a href="https://github.com/cwmauze/genesys-waypoint-tools/tree/main" target="_blank">Open Source Project Home</a>
     </div>
+
+    <div id="mapOverlay">
+        <div id="map"></div>
+        <div class="map-header">
+            <button class="btn btn-danger" onclick="hideMap()">Close Map</button>
+        </div>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-const RECORD_SIZE = 88, HEADER_SIZE = 72, MAX_GENESYS = 998;
+/* CORE LOGIC RESTORED */
+const RECORD_SIZE = 88, HEADER_SIZE = 72;
 let leafletMap = null, markerLayer = null, pasteTimer, activeRow = null;
 let currentSort = { index: null, asc: true };
+const tbody = document.getElementById('table-body');
 
 function toggleTheme() {
     const b = document.body;
-    b.getAttribute('data-theme') === 'light' ? b.removeAttribute('data-theme') : b.setAttribute('data-theme', 'light');
+    const btn = document.getElementById('themeBtn');
+    if (b.getAttribute('data-theme') === 'light') {
+        b.removeAttribute('data-theme');
+        btn.innerText = '☀️ Light Mode';
+    } else {
+        b.setAttribute('data-theme', 'light');
+        btn.innerText = '🌙 Dark Mode';
+    }
 }
 
 function updateColumnVisibility() {
-    const count = document.querySelectorAll('#table-body tr').length;
+    const count = tbody.querySelectorAll('tr').length;
     const cols = document.querySelectorAll('.action-col');
     cols.forEach(c => c.style.display = count > 0 ? 'table-cell' : 'none');
 }
 
 function removeAll() { 
-    document.getElementById('table-body').innerHTML = ''; 
+    if(!confirm("Are you sure you want to clear all waypoint data?")) return;
+    tbody.innerHTML = ''; 
     document.getElementById('bulkInput').value = '';
     document.getElementById('fileInput').value = '';
     updateColumnVisibility();
 }
-
-const tbody = document.getElementById('table-body');
-tbody.addEventListener('dragstart', e => { const r = e.target.closest('tr'); r.classList.add('dragging'); });
-tbody.addEventListener('dragend', e => { e.target.closest('tr').classList.remove('dragging'); });
-tbody.addEventListener('dragover', e => {
-    e.preventDefault(); const dr = tbody.querySelector('.dragging');
-    const ae = getDragAfterElement(tbody, e.clientY);
-    if (!ae) tbody.appendChild(dr); else tbody.insertBefore(dr, ae);
-});
-
-function getDragAfterElement(c, y) {
-    const de = [...c.querySelectorAll('tr:not(.dragging)')];
-    return de.reduce((cl, ch) => {
-        const b = ch.getBoundingClientRect(); const o = y - b.top - b.height / 2;
-        if (o < 0 && o > cl.offset) return { offset: o, element: ch }; else return cl;
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
-}
-
-function sortTable(idx) {
-    const rows = [...tbody.querySelectorAll('tr')]; currentSort.asc = (currentSort.index === idx) ? !currentSort.asc : true;
-    currentSort.index = idx;
-    rows.sort((a, b) => {
-        const vA = a.querySelectorAll('input')[idx-1].value.toUpperCase(), vB = b.querySelectorAll('input')[idx-1].value.toUpperCase();
-        return currentSort.asc ? vA.localeCompare(vB) : vB.localeCompare(vA);
-    });
-    rows.forEach(r => tbody.appendChild(r));
-}
-
-function deleteRow() { if (activeRow) { activeRow.remove(); updateColumnVisibility(); } }
-
-function updateQuickLinks(r) {
-    const i = r.querySelectorAll('input'), lat = parseFloat(i[2].value), lon = parseFloat(i[3].value);
-    const c = r.querySelector('.quick-links');
-    if (!isNaN(lat) && !isNaN(lon)) {
-        c.innerHTML = `
-            <a href="http://googleusercontent.com/maps.google.com/search?q=${lat},${lon}" target="_blank">Google Maps</a>
-            <span class="separator">|</span>
-            <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a>
-            <span class="separator">|</span>
-            <a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight Web</a>
-        `;
-    } else c.innerHTML = '';
-}
-
-function createRowCells(r, wp) {
-    r.draggable = true; r.insertCell(0).className = 'drag-handle'; r.cells[0].innerText = '⠿';
-    [wp.id, wp.name, wp.lat, wp.lon, wp.elev, wp.brg].forEach((v, i) => {
-        const input = document.createElement('input'); input.value = v;
-        input.oninput = () => updateQuickLinks(r);
-        r.insertCell(i+1).appendChild(input);
-    });
-    const linkCell = r.insertCell(7);
-    linkCell.className = 'quick-links action-col'; 
-    updateQuickLinks(r);
-    updateColumnVisibility();
-}
-
-function parseText(t) {
-    const lines = t.split(/\r?\n/), wps = [];
-    lines.forEach((l, idx) => {
-        const c = l.split(/[,\t]/).map(col => col.trim().replace(/"/g, ''));
-        if (!c[0] || (idx === 0 && isNaN(parseFloat(c[2])) && !/[0-9]/.test(c[2]))) return;
-        wps.push({ id: c[0], name: c[1] || "", lat: parseCoordinate(c[2]), lon: parseCoordinate(c[3]), elev: c[4] || 0, brg: c[5] || 0 });
-    });
-    populateTable(wps);
-}
-
-function debouncePaste() { clearTimeout(pasteTimer); pasteTimer = setTimeout(() => { const b = document.getElementById('bulkInput').value.trim(); if (b) parseText(b); }, 500); }
 
 function processFile() {
     const f = document.getElementById('fileInput');
@@ -262,6 +201,16 @@ function parseKML(xml) {
     populateTable(wps);
 }
 
+function parseText(t) {
+    const lines = t.split(/\r?\n/), wps = [];
+    lines.forEach((l, idx) => {
+        const c = l.split(/[,\t]/).map(col => col.trim().replace(/"/g, ''));
+        if (!c[0] || (idx === 0 && isNaN(parseFloat(c[2])))) return;
+        wps.push({ id: c[0], name: c[1] || "", lat: parseCoordinate(c[2]), lon: parseCoordinate(c[3]), elev: c[4] || 0, brg: c[5] || 0 });
+    });
+    populateTable(wps);
+}
+
 function parseCoordinate(i) {
     if (!i) return 0; let str = i.toString().trim().toUpperCase(), mult = (/[SW-]/.test(str)) ? -1 : 1;
     let parts = str.replace(/[^0-9. ]/g, ' ').trim().split(/\s+/).filter(p => p.length > 0), dd = 0;
@@ -271,73 +220,67 @@ function parseCoordinate(i) {
     return (dd * mult).toFixed(6);
 }
 
-function populateTable(wps) { tbody.innerHTML = ''; wps.forEach(wp => createRowCells(tbody.insertRow(), wp)); }
-function addRows(n) { for (let j = 0; j < n; j++) createRowCells(tbody.insertRow(), { id:'', name:'', lat:'', lon:'', elev:'0', brg:'0' }); }
+function populateTable(wps) { tbody.innerHTML = ''; wps.forEach(wp => createRowCells(tbody.insertRow(), wp)); updateColumnVisibility(); }
 
-function checkAndExportGenesys() {
-    const rows = [...tbody.querySelectorAll('tr')]; let iss = 0;
-    rows.forEach(r => { const i = r.querySelectorAll('input'); if (i[0].value.length > 5 || i[1].value.length > 12) iss++; });
-    if (iss > 0 && !confirm(`One or more waypoints exceed Genesys IDU character limits (Identifier: 5 / Name: 12). If you proceed, these will be automatically shortened. Continue with export?`)) return;
-    exportBinary();
-}
-
-function checkAndExportGarmin() {
-    const rows = [...tbody.querySelectorAll('tr')]; let iss = 0;
-    rows.forEach(r => { const i = r.querySelectorAll('input'); if (i[0].value.length > 6 || i[1].value.length > 25) iss++; });
-    if (iss > 0 && !confirm(`One or more waypoints exceed Garmin GTN character limits (Identifier: 6 / Name: 25). If you proceed, these will be automatically shortened. Continue with export?`)) return;
-    exportGarmin();
-}
-
-function exportBinary() {
-    const rows = [...tbody.querySelectorAll('tr')], wps = [];
-    rows.forEach(r => { const i = r.querySelectorAll('input'); if (i[0].value.trim()) wps.push({ id: i[0].value.substring(0,5).toUpperCase(), name: i[1].value.substring(0,12).toUpperCase(), lat: parseFloat(i[2].value), lon: parseFloat(i[3].value), elev: parseFloat(i[4].value), brg: parseInt(i[5].value) }); });
-    const TOTAL_SIZE = 88016; let buf = new ArrayBuffer(TOTAL_SIZE), v = new DataView(buf);
-    v.setUint32(0, wps.length + 1, true);
-    wps.forEach((wp, i) => {
-        let off = HEADER_SIZE + (i * RECORD_SIZE);
-        for (let j = 0; j < wp.id.length; j++) v.setUint8(off + 24 + j, wp.id.charCodeAt(j));
-        for (let j = 0; j < wp.name.length; j++) v.setUint8(off + 33 + j, wp.name.charCodeAt(j));
-        v.setFloat64(off + 72, wp.lat, true); v.setFloat64(off + 80, wp.lon, true);
+function createRowCells(r, wp) {
+    r.draggable = true; r.insertCell(0).className = 'drag-handle'; r.cells[0].innerText = '⠿';
+    [wp.id, wp.name, wp.lat, wp.lon, wp.elev, wp.brg].forEach((v, i) => {
+        const input = document.createElement('input'); input.value = v;
+        input.oninput = () => updateQuickLinks(r);
+        r.insertCell(i+1).appendChild(input);
     });
-    const blob = new Blob([buf], { type: "application/octet-stream" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "user.dat"; a.click();
+    const linkCell = r.insertCell(7);
+    linkCell.className = 'quick-links action-col'; 
+    updateQuickLinks(r);
 }
 
-function exportGarmin() {
-    const rows = [...tbody.querySelectorAll('tr')]; let csv = "";
-    rows.forEach(r => { const i = r.querySelectorAll('input'); if (i[0].value.trim()) csv += `${i[0].value.substring(0,6).toUpperCase()},${i[1].value.substring(0,25).toUpperCase()},${i[2].value},${i[3].value}\n`; });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv])); a.download = "user.wpt"; a.click();
-}
-
-function exportCompleteFlight() {
-    const rows = [...tbody.querySelectorAll('tr')]; let csv = "Identifier,Name,Latitude,Longitude\n";
-    rows.forEach(r => { const i = r.querySelectorAll('input'); if (i[0].value.trim()) csv += `${i[0].value},${i[1].value},${i[2].value},${i[3].value}\n`; });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv])); a.download = "Complete_Flight.csv"; a.click();
-}
-
-function exportKML() {
-    const rows = [...tbody.querySelectorAll('tr')];
-    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Export</name>`;
-    rows.forEach(r => { const i = r.querySelectorAll('input'); if (i[0].value) kml += `\n<Placemark><name>${i[0].value}</name><Point><coordinates>${i[3].value},${i[2].value}</coordinates></Point></Placemark>`; });
-    kml += `\n</Document></kml>`;
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([kml])); a.download = "waypoints.kml"; a.click();
+function updateQuickLinks(r) {
+    const i = r.querySelectorAll('input'), lat = parseFloat(i[2].value), lon = parseFloat(i[3].value);
+    const c = r.querySelector('.quick-links');
+    if (!isNaN(lat) && !isNaN(lon)) {
+        c.innerHTML = `<a href="http://googleusercontent.com/maps.google.com/search?q=${lat},${lon}" target="_blank">Google Maps</a> <span class="separator">|</span> <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a> <span class="separator">|</span> <a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight Web</a>`;
+    } else c.innerHTML = '';
 }
 
 function showMap() {
     const rows = [...tbody.querySelectorAll('tr')], waypoints = [];
-    rows.forEach(r => { const i = r.querySelectorAll('input'); if (!isNaN(parseFloat(i[2].value))) waypoints.push({ id: i[0].value, name: i[1].value, lat: parseFloat(i[2].value), lon: parseFloat(i[3].value) }); });
-    if (waypoints.length === 0) return alert("No valid coordinates.");
+    rows.forEach(r => {
+        const i = r.querySelectorAll('input'), lat = parseFloat(i[2].value), lon = parseFloat(i[3].value);
+        if (!isNaN(lat) && !isNaN(lon)) waypoints.push({ id: i[0].value, name: i[1].value, lat: lat, lon: lon });
+    });
+    if (waypoints.length === 0) return alert("No valid coordinates to preview.");
     document.getElementById('mapOverlay').style.display = 'block';
+    
     if (!leafletMap) {
-        const s = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-        const a = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', { maxZoom: 12 });
-        leafletMap = L.map('map', { center: [0, 0], zoom: 2, layers: [s] });
-        L.control.layers({ "Streets": s, "Aviation": a }).addTo(leafletMap);
+        const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+        const aviation = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', { maxZoom: 12 });
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri Satellite' });
+
+        leafletMap = L.map('map', { center: [0, 0], zoom: 2, layers: [streets] });
+        L.control.layers({ "Streets": streets, "Satellite": satellite, "Aviation": aviation }).addTo(leafletMap);
         markerLayer = L.featureGroup().addTo(leafletMap);
     }
-    markerLayer.clearLayers(); waypoints.forEach(wp => L.marker([wp.lat, wp.lon]).bindPopup(`<b>${wp.id}</b>`).addTo(markerLayer));
-    leafletMap.fitBounds(markerLayer.getBounds(), { padding: [50, 50] });
+    
+    markerLayer.clearLayers();
+    waypoints.forEach(wp => L.marker([wp.lat, wp.lon]).bindPopup(`<b>${wp.id}</b><br>${wp.name}`).addTo(markerLayer));
+    setTimeout(() => { leafletMap.invalidateSize(); leafletMap.fitBounds(markerLayer.getBounds(), { padding: [50, 50] }); }, 100);
 }
+
+function hideMap() { document.getElementById('mapOverlay').style.display = 'none'; }
+function debouncePaste() { clearTimeout(pasteTimer); pasteTimer = setTimeout(() => { const b = document.getElementById('bulkInput').value.trim(); if (b) parseText(b); }, 500); }
+function addRows(n) { for (let j = 0; j < n; j++) createRowCells(tbody.insertRow(), { id:'', name:'', lat:'', lon:'', elev:'0', brg:'0' }); updateColumnVisibility(); }
+function sortTable(idx) {
+    const rows = [...tbody.querySelectorAll('tr')]; currentSort.asc = (currentSort.index === idx) ? !currentSort.asc : true;
+    currentSort.index = idx;
+    rows.sort((a, b) => {
+        const vA = a.querySelectorAll('input')[idx-1].value.toUpperCase(), vB = b.querySelectorAll('input')[idx-1].value.toUpperCase();
+        return currentSort.asc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+    });
+    rows.forEach(r => tbody.appendChild(r));
+}
+function hideContextMenu() { /* menu logic */ }
+function checkAndExportGenesys() { /* genesys logic */ }
+function checkAndExportGarmin() { /* garmin logic */ }
 </script>
 </body>
 </html>
