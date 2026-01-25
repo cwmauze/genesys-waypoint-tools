@@ -1,45 +1,44 @@
-# Genesys Aerosystems IDU Waypoint Loader
+# Genesys Waypoint Tools
 
-A browser-based, standalone utility for managing user-defined waypoint data for **Genesys Aerosystems IDU series avionics suites** (IDU-450, IDU-680, IDU-1380), **Garmin GTN series** navigators, and **Complete Flight** dispatch systems.
+A lightweight, browser-based utility for managing and exporting waypoint data to Genesys Aerosystems IDU and Garmin GTN/GNS avionics.
 
-## ✈️ Mission Profile
-This tool acts as a universal translator between mapping software (Google Earth), flight planning software (ForeFlight), and your avionics. It handles the conversion of "dirty" coordinate data into the precise binary and text formats required for aircraft upload via USB or SD card.
+## Background & Origin
+This tool exists because Genesys Aerosystems apparently believes that manual data entry is a core competency for modern pilots.
 
-## 🛠 Features
-* **Zero-Click Processing:** Data populates the table automatically upon file selection or bulk pasting.
-* **Integrated Map Preview:** Interactive Leaflet.js overlay with togglable **Streets**, **Satellite**, and **FAA VFR Sectional** layers.
-* **Multi-Format Export:** Generate proprietary `user.dat` (Genesys binary), `user.wpt` (Garmin CSV), or `Complete_Flight.csv` (Dispatch) files.
-* **Robust Coordinate Parsing:** Detects and converts Decimal Degrees (DD), Degrees Decimal Minutes (DDM), and Degrees Minutes Seconds (DMS) automatically.
-* **KML Smart-Conversion:** Automatically detects and converts altitude units (Meters to Feet) based on Google Earth's `<altitudeMode>` tags.
-* **Data Safety:** Hardware-specific warnings appear during export if identifiers must be shortened (truncated) to fit system limits (5-char for Genesys, 6-char for Garmin).
+Despite the sophistication of their EFIS hardware, Genesys provides no official, manufacturer-supported method for the bulk upload of user waypoints. According to their technical support, if you need to load a database of—potentially—hundreds of waypoints, your "approved" options are:
 
-## 📋 Specifications
-* **Genesys Capacity:** Supports up to 998 user-defined waypoints.
-* **Garmin Capacity:** Formatted for GTN 650/750 compatibility.
-* **Nomenclature Logic:** Hover over map markers to see a hierarchical view of the Identifier (Bold) and Friendly Name.
-* **Binary Integrity:** Includes a reverse-engineered CRC-32 checksum to ensure `user.dat` files are accepted by the IDU without corruption errors.
+1.  **Cockpit Manual Entry:** Spend hours twisting physical IDU knobs to enter every identifier, name, and coordinate one by one.
+2.  **The "Trainer" Method:** Use their PC-based EFIS training tool to manually click through a virtual version of the exact same menus to recreate the data.
 
-## 🚀 Operation Instructions
-1.  **Load Data:** Select your file (.dat, .csv, .kml) or paste rows directly into the bulk field.
-2.  **Map Preview:** Click **Preview on Map** to visually verify waypoint placement against VFR sectionals or satellite imagery.
-3.  **Verify:** Confirm coordinates and supplemental data in the table.
-4.  **Download:** Click the desired system button. Review any truncation warnings before finalizing.
+In most industries, this is called a "waste of time." In aviation—specifically in the **Rotary-Wing EMS** world where this tool was born—this is a genuine safety issue. Forcing a pilot to manually transcribe hundreds of lines of coordinate data is an invitation for human error. In a mission-critical HEMS environment, a single fat-fingered digit isn't just a typo; it’s a potential life-or-death navigation failure. 
 
-## 📜 Version History
+While other vendors (like Garmin) have spent the last decade making data integration seamless, Genesys has left it to the end-users to engineer their own safety nets. We decided our time was better spent reverse-engineering the `user.dat` binary format than playing "entry clerk" with a $50k avionics suite. 
 
-| Version | Date | Key Updates |
-| :--- | :--- | :--- |
-| **v5.80** | Jan 2026 | Removed "Load Data" button; added auto-processing; FAA VFR Sectional layers. |
-| **v5.79** | Jan 2026 | Implemented dual-layer Leaflet preview and hierarchical marker tooltips. |
-| **v5.70** | Jan 2026 | Integrated Leaflet.js for in-browser map previews. |
-| **v5.60** | Jan 2026 | Added automatic unit detection for KML altitude (Meters to Feet). |
-| **v5.50** | Jan 2026 | Initial support for Garmin `.wpt` and experimental Complete Flight CSV. |
-| **v5.00** | Jan 2026 | First successful reverse-engineered binary `user.dat` export. |
+## Technical Specifications
+For a deep dive into the engineering behind this tool, refer to the [Technical Specifications Document](docs/technical_specs.md). 
+It provides a detailed mapping of the `user.dat` binary structure, including:
+* **Header Architecture:** The 72-byte fixed header requirements.
+* **Record Structure:** The 88-byte waypoint record blocks.
+* **Data Types:** IEEE 754 Double Precision Float handling for coordinates.
+* **Integrity:** The implementation of the CRC-32 checksum required for IDU hardware acceptance.
 
-## 🔗 Documentation & References
-* [🛠 **Technical Specs: Genesys Binary Archaeology**](./TECHNICAL_SPECS.md) - A deep dive into how the `user.dat` format was decoded.
-* [Official Genesys IDU Pilot Guides (Moog)](https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html)
-* [Garmin GTN User Waypoint Import Guide](https://support.garmin.com/en-US/?faq=3mcdU37gXi88ipwjJIxJo7)
+## Features
+* **Binary Encoding:** Automatically generates a valid Genesys `user.dat` file with proper CRC checksums.
+* **Format Agnostic:** Paste coordinates in Decimal Degrees (DD), Degrees Decimal Minutes (DDM), or Degrees Minutes Seconds (DMS) and let the parser do the heavy lifting.
+* **Safety Validation:** Automatically warns you when a waypoint exceeds hardware character limits (5/12 for Genesys, 6/25 for Garmin).
+* **Cross-Verification:** One-click links to Google Maps, Google Earth, and ForeFlight Web to verify coordinates before they ever reach the aircraft.
 
----
-*Build: v5.80 | [Project Home](https://github.com/cwmauze/genesys-waypoint-tools/tree/main)*
+## Version History
+* **v6.12:** Expanded instruction block with explicit coordinate format definitions; restored hardware truncation alerts.
+* **v6.08:** Introduced conditional UI logic to hide the "View waypoint in" column until data is present.
+* **v6.00:** Major overhaul of bulk paste parser and auto-load event listeners.
+* **v5.00:** Initial release of reverse-engineered `user.dat` binary export functionality.
+
+## Usage
+1. Open `index.html` in any modern browser.
+2. Select an existing file to edit or bulk-paste rows from your spreadsheet or dispatch software.
+3. Verify the data in the table.
+4. Export to your desired hardware format and copy the file to your data card.
+
+## License
+Open Source Project. See GitHub repository for details.
