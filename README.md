@@ -15,7 +15,7 @@ In most industries, this is called a "waste of time." In aviation—specifically
 While other vendors (like Garmin) have spent the last decade making data integration seamless, Genesys has left it to the end-users to engineer their own safety nets. We decided our time was better spent reverse-engineering the `user.dat` binary format than playing "entry clerk" with a $50k avionics suite. 
 
 ## Technical Specifications
-For a deep dive into the engineering behind this tool, refer to the [Technical Specifications Document](TECHNICAL SPECIFICATIONS.md). 
+For a deep dive into the engineering behind this tool, refer to the [Link to TECHNICAL SPECIFICATIONS}(TECHNICAL SPECIFICATIONS.md). 
 It provides a detailed mapping of the `user.dat` binary structure, including:
 * **Header Architecture:** The 72-byte fixed header requirements.
 * **Record Structure:** The 88-byte waypoint record blocks.
