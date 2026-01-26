@@ -33,7 +33,8 @@
         .action-bar { 
             background: var(--card) !important;
             padding: 15px; border-radius: 8px; margin-bottom: 20px; 
-            display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+            display: none; /* v7.6.4 Hidden by default */
+            flex-wrap: wrap; gap: 10px; align-items: center;
             position: sticky; top: 0; z-index: 1002; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
             border-bottom: 3px solid var(--primary);
@@ -92,11 +93,15 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint Tools</h2>
-            <span class="version-subtitle" onclick="showHistory()">Build v7.6.3 (View History)</span>
+            <span class="version-subtitle" onclick="showHistory()">Build v7.6.4 (View History)</span>
             <a href="mailto:cistern_fob3m@icloud.com?subject=IDU%20Tool%20Feedback" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools/tree/main" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
         <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
+    </div>
+
+    <div style="font-size: 13px; color: #90949c; margin-bottom: 25px; line-height: 1.5; max-width: 1000px; border-left: 2px solid var(--border); padding-left: 15px;">
+        This tool serves as a necessary interface for generating navigation database files, as Genesys Aerosystems does not provide a standalone utility for this process. It automates the extraction and validation of waypoint identifiers and coordinates from diverse sources into the specific binary structure required for Genesys and Garmin avionics uploads.
     </div>
     
     <div class="top-info-grid">
@@ -171,8 +176,9 @@
         <div class="modal-content">
             <h3 style="margin-top:0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Project version history</h3>
             <div class="modal-body" id="modal-body">
-                <strong>v7.6.3:</strong> Reduced header height; Added Click-to-Toggle subtitle; Implemented subtle header separators.<br>
-                <strong>v7.6.2:</strong> Finalized header alignment and table anchoring; Refined sticky observer.<br>
+                <strong>v7.6.4:</strong> Action Bar hidden until data is present; Added matter-of-fact description.<br>
+                <strong>v7.6.3:</strong> Reduced header height; Added Click-to-Toggle subtitle; Implemented header separators.<br>
+                <strong>v7.6.2:</strong> Finalized header alignment and table anchoring.<br>
                 <strong>v7.6.0:</strong> Integrated Coordinate Toggle into column headers.<br>
                 <strong>v7.5.7:</strong> Restored original validation alerts.<br>
                 <strong>v7.1 Stable:</strong> Core logic synchronized with binary engine.
@@ -234,7 +240,6 @@ function toggleCoordinateFormat() {
             inputs[3].value = formatCoord(lon, false);
         }
     });
-    logAction("Format: " + coordFormat, "Header", "Ready");
 }
 
 function formatCoord(val, isLat) {
@@ -270,8 +275,8 @@ function validateAndExportGenesys() {
         }
     });
     let msg = "";
-    if (longIds.length > 0) msg += `Identifier Warning (Genesys):\n${longIds.length} identifiers exceed 5 chars and will be truncated.\n(e.g. ${longIds.slice(0,3).join(", ")}...)\n\n`;
-    if (longNames.length > 0) msg += `Name Warning (Genesys):\n${longNames.length} names exceed 12 chars (cockpit display limit).\n(e.g. ${longNames.slice(0,3).join(", ")}...)\n\n`;
+    if (longIds.length > 0) msg += `Identifier Warning (Genesys):\n${longIds.length} identifiers exceed 5 chars and will be truncated.\n\n`;
+    if (longNames.length > 0) msg += `Name Warning (Genesys):\n${longNames.length} names exceed 12 chars.\n\n`;
     if (msg !== "" && !confirm(msg + "Proceed with export?")) return;
     checkAndExportGenesys();
 }
@@ -475,7 +480,13 @@ function updateQuickLinks(r) {
     else c.innerHTML = '';
 }
 
-function updateColumnVisibility() { document.querySelectorAll('.action-col').forEach(c => c.style.display = tbody.querySelectorAll('tr').length > 0 ? 'table-cell' : 'none'); }
+// v7.6.4 Logic to show/hide Action Bar
+function updateColumnVisibility() { 
+    const rowCount = tbody.querySelectorAll('tr').length;
+    document.querySelectorAll('.action-col').forEach(c => c.style.display = rowCount > 0 ? 'table-cell' : 'none'); 
+    document.getElementById('actionBar').style.display = rowCount > 0 ? 'flex' : 'none';
+}
+
 function downloadBlob(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
 function toggleTheme() { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); }
 
