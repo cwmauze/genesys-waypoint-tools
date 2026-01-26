@@ -151,3 +151,21 @@ If re-implementing this tool from scratch, ensure:
 4.  [ ] **Region "K7"** is written as 2 bytes (`0x4B 0x37`) without a trailing null.
 5.  [ ] **ID Look-Ahead:** The ID for the current waypoint is written to the *next* record's ID slot.
 6.  [ ] **CRC32** is calculated on bytes 0-4771 and written to 4772.
+   
+## 7. Addendum: Data Content Standards (Phantom Records & Defaults)
+
+### 7.1 The "Phantom Record" (Termination)
+Because the file format uses "Leg-Based" ID shifting (where Record N stores the ID for Waypoint N-1), the ID for the **Final Waypoint** cannot be stored in its own coordinate record.
+
+* **Location:** The file **MUST** contain one extra record after the last coordinate record.
+* **Structure:**
+    * **Coordinates:** `0.00` / `0.00` (Ignored).
+    * **ID Field (Offset 08):** Contains the ID of the Final Waypoint (e.g., "KILM").
+    * **Region:** "K7" (Standard).
+* **Parsing Logic:** The importer must read `Count` items for coordinates, but look at `Record[Count]` (the N+1 record) to retrieve the final ID string.
+
+### 7.2 UI Artifacts vs. Binary Data
+Users of the Genesys Trainer software may see labels such as "WP-1", "WP-2", or "DEST". These are **User Interface Artifacts** and are **NOT** dedicated fields in the binary.
+
+* **"WP-X":** Displayed by the Trainer when the **ID Field (Offset 08)** is empty (`0x00`) or contains invalid ASCII. The binary file should ideally always contain a valid alphanumeric ID to prevent this fallback.
+* **"DEST":** A visual label used by the Trainer for the final leg. The binary file actually stores the target ID (e.g., "KILM") in the Phantom Record, not the literal string "DEST" (unless the pilot explicitly named it "DEST").
