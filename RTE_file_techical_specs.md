@@ -66,26 +66,34 @@ The last 4 bytes of the file contain a standard CRC32 Checksum.
 
 ---
 
-## 3. The "Leg-Based" Logic (Critical)
-
-The most complex aspect of the .RTE format is how it handles Waypoint IDs. It does not store "Point" properties; it stores "Leg" properties.
-
-### 3.1 The "ID Shift"
+### 3.1 The "ID Shift" (Forensic Example: RDU-FAY-ILM)
 In the binary file, Record `N` stores the coordinates for Waypoint `N`, but the ID for Waypoint `N-1`.
 
-* **Record 0 (Origin):**
-    * Coordinates: **RDU** (Lat/Lon).
-    * ID Field: **Empty** (No leg leads TO the origin).
-    * Flag: `0xB3 01`.
-* **Record 1:**
-    * Coordinates: **FAY** (Lat/Lon).
-    * ID Field: **"KRDU"** (The ID of the *previous* waypoint).
-* **Record 2:**
-    * Coordinates: **ILM** (Lat/Lon).
-    * ID Field: **"FAY"** (The ID of the *previous* waypoint).
-* **Record 3 (Phantom):**
-    * Coordinates: **0.0 / 0.0**.
-    * ID Field: **"KILM"** (The final destination ID).
+Below is the exact data layout for a flight plan from **KRDU** to **KILM** via **FAY**.
+
+* **Record 0 (Origin - KRDU Location):**
+    * **Latitude:** `35.877638`
+    * **Longitude:** `-78.787472`
+    * **ID Field (Offset 08):** `00 00 00 00 00 00` (Empty/Null).
+    * **Flag:** `0xB3 01` (Indicates Start of Route).
+
+* **Record 1 (Waypoint 2 - FAY Location):**
+    * **Latitude:** `34.985550`
+    * **Longitude:** `-78.875064`
+    * **ID Field (Offset 08):** `"KRDU  "` (The ID of the *previous* waypoint).
+    * **Flag:** `0x00 00`.
+
+* **Record 2 (Waypoint 3 - ILM Location):**
+    * **Latitude:** `34.271139`
+    * **Longitude:** `-77.902889`
+    * **ID Field (Offset 08):** `"FAY   "` (The ID of the *previous* waypoint).
+    * **Flag:** `0x00 00`.
+
+* **Record 3 (Phantom - Termination):**
+    * **Latitude:** `0.000000`
+    * **Longitude:** `0.000000`
+    * **ID Field (Offset 08):** `"KILM  "` (The ID of the *final* destination).
+    * **Flag:** `0x00 00`.
 
 ### 3.2 Importer Logic
 To correctly read the file:
