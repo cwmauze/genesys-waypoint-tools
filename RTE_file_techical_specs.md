@@ -121,7 +121,7 @@ To correctly write the file:
 
 ## 4. File Naming Convention
 
-The Trainer expects a strict 8.3 filename format derived from the Start and End identifiers.
+The software expects a strict 8.3 filename format derived from the Start and End identifiers.
 
 * **Format:** `SSS-EEE0.RTE`
 * **SSS:** First 3 characters of the Origin ID (or 3 chars if 4-letter ICAO code).
