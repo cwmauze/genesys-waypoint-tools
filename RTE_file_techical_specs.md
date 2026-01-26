@@ -70,7 +70,7 @@ The last 4 bytes of the file contain a standard CRC32 Checksum.
 
 The most complex aspect of the .RTE format is how it handles Waypoint IDs. It does not store "Point" properties; it stores "Leg" properties.
 
-### 3.1 The "ID Shift" (Forensic Example: RDU-FAY-ILM)
+### 3.1 The "ID Shift" (Forensic Example: KRDU-FAY-KILM)
 In the binary file, Record `N` stores the coordinates for Waypoint `N`, but the ID for Waypoint `N-1`.
 
 Below is the exact data layout for a flight plan from **KRDU** to **KILM** via **FAY**.
