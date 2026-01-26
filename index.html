@@ -33,7 +33,7 @@
         .action-bar { 
             background: var(--card) !important;
             padding: 15px; border-radius: 8px; margin-bottom: 20px; 
-            display: none; /* v7.6.4 Hidden by default */
+            display: none; 
             flex-wrap: wrap; gap: 10px; align-items: center;
             position: sticky; top: 0; z-index: 1002; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
@@ -75,7 +75,6 @@
         #mapOverlay { display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; background: var(--card); z-index: 3000; border: 2px solid var(--primary); border-radius: 12px; }
         #map { width: 100%; height: calc(100% - 60px); }
 
-        /* Drag & Drop Visuals */
         .drag-handle { cursor: grab; text-align: center; color: var(--primary); font-size: 16px; user-select: none; }
         .drag-handle:active { cursor: grabbing; }
         tbody tr { transition: transform 0.1s ease, background 0.2s ease; }
@@ -93,7 +92,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint Tools</h2>
-            <span class="version-subtitle" onclick="showHistory()">Build v7.6.4 (View History)</span>
+            <span class="version-subtitle" onclick="showHistory()">Build v7.6.5 (View History)</span>
             <a href="mailto:cistern_fob3m@icloud.com?subject=IDU%20Tool%20Feedback" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools/tree/main" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
@@ -176,11 +175,10 @@
         <div class="modal-content">
             <h3 style="margin-top:0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Project version history</h3>
             <div class="modal-body" id="modal-body">
+                <strong>v7.6.5:</strong> Strict Garmin user.wpt alignment (Headerless, 4 columns, fixed precision); Removed elevation/comments from Garmin.<br>
                 <strong>v7.6.4:</strong> Action Bar hidden until data is present; Added matter-of-fact description.<br>
-                <strong>v7.6.3:</strong> Reduced header height; Added Click-to-Toggle subtitle; Implemented header separators.<br>
-                <strong>v7.6.2:</strong> Finalized header alignment and table anchoring.<br>
+                <strong>v7.6.3:</strong> Reduced header height; Click-to-Toggle subtitle; Header separators.<br>
                 <strong>v7.6.0:</strong> Integrated Coordinate Toggle into column headers.<br>
-                <strong>v7.5.7:</strong> Restored original validation alerts.<br>
                 <strong>v7.1 Stable:</strong> Core logic synchronized with binary engine.
             </div>
             <button class="btn btn-secondary" style="margin-top:20px" onclick="closeHistory()">Close</button>
@@ -282,14 +280,37 @@ function validateAndExportGenesys() {
 }
 
 function validateAndExportGarmin() {
-    const rows = tbody.querySelectorAll('tr'), MAX_NAME_LEN = 25;
-    let longNames = [];
+    const rows = tbody.querySelectorAll('tr'), MAX_ID_LEN = 6, MAX_NAME_LEN = 25;
+    let longIds = [], longNames = [];
     rows.forEach(r => { 
         const inp = r.querySelectorAll('input');
-        if (inp.length > 1 && inp[1].value.trim().length > MAX_NAME_LEN) longNames.push(inp[1].value.trim()); 
+        if (inp.length > 1) {
+            if (inp[0].value.trim().length > MAX_ID_LEN) longIds.push(inp[0].value.trim());
+            if (inp[1].value.trim().length > MAX_NAME_LEN) longNames.push(inp[1].value.trim()); 
+        }
     });
-    if (longNames.length > 0 && !confirm(`Name Warning (Garmin):\n${longNames.length} names exceed 25 chars. Proceed?`)) return;
+    let msg = "";
+    if (longIds.length > 0) msg += `Identifier Warning (Garmin):\n${longIds.length} identifiers exceed 6 chars and will be truncated.\n\n`;
+    if (longNames.length > 0) msg += `Comment Warning (Garmin):\n${longNames.length} comments exceed 25 chars and will be truncated.\n\n`;
+    if (msg !== "" && !confirm(msg + "Proceed?")) return;
     checkAndExportGarmin();
+}
+
+function checkAndExportGarmin() {
+    let csv = ""; // v7.6.5 Strictly headerless
+    tbody.querySelectorAll('tr').forEach(r => {
+        const inp = r.querySelectorAll('input');
+        if (inp.length >= 4) {
+            const id = inp[0].value.trim().toUpperCase().substring(0, 6);
+            const comment = inp[1].value.trim().toUpperCase().substring(0, 25);
+            const lat = parseFloat(parseCoordinate(inp[2].value)).toFixed(9);
+            const lon = parseFloat(parseCoordinate(inp[3].value)).toFixed(8);
+            // Col A: ID, Col B: Comment, Col C: Lat, Col D: Lon
+            csv += `${id},${comment},${lat},${lon}\n`;
+        }
+    });
+    downloadBlob(new Blob([csv], {type: 'text/csv'}), "user.wpt");
+    logAction("Exported Garmin", "user.wpt", "Success");
 }
 
 function smartParse(text) {
@@ -375,12 +396,6 @@ function checkAndExportGenesys() {
 }
 
 function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
-
-function checkAndExportGarmin() {
-    let csv = "Identifier,Name,Latitude,Longitude,Elevation,Comment\n";
-    tbody.querySelectorAll('tr').forEach(r => { const i = r.querySelectorAll('input'); csv += `${i[0].value},${i[1].value},${parseCoordinate(i[2].value)},${parseCoordinate(i[3].value)},${i[4].value},Garmin GTN\n`; });
-    downloadBlob(new Blob([csv], {type:'text/csv'}), "user.wpt");
-}
 
 function exportCompleteFlight() {
     let csv = "ID,NAME,LAT,LON,ELEV,BRG\n";
@@ -480,7 +495,6 @@ function updateQuickLinks(r) {
     else c.innerHTML = '';
 }
 
-// v7.6.4 Logic to show/hide Action Bar
 function updateColumnVisibility() { 
     const rowCount = tbody.querySelectorAll('tr').length;
     document.querySelectorAll('.action-col').forEach(c => c.style.display = rowCount > 0 ? 'table-cell' : 'none'); 
