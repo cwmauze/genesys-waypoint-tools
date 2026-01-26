@@ -1,4 +1,4 @@
-# Genesys IDU .RTE Technical Specification
+# Genesys IDU .RTE file Technical Specification
 **Version:** 1.0  
 **Date:** January 26, 2026  
 **Status:** FORENSIC GOLD MASTER  
