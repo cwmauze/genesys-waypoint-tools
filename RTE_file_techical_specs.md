@@ -66,6 +66,10 @@ The last 4 bytes of the file contain a standard CRC32 Checksum.
 
 ---
 
+## 3. The "Leg-Based" Logic (Critical)
+
+The most complex aspect of the .RTE format is how it handles Waypoint IDs. It does not store "Point" properties; it stores "Leg" properties.
+
 ### 3.1 The "ID Shift" (Forensic Example: RDU-FAY-ILM)
 In the binary file, Record `N` stores the coordinates for Waypoint `N`, but the ID for Waypoint `N-1`.
 
@@ -102,7 +106,7 @@ To correctly read the file:
     * Read Coordinates from Record `i`.
     * Read Description from Name Block `i`.
     * Read ID from Record `i+1` (The next record).
-3.  *Edge Case:* If Record `i+1` is empty, use "WP [i+1]".
+3.  *Edge Case:* If Record `i+1` is empty, generate a generic placeholder label (e.g., "WP [i+1]") for display purposes, as the binary data is null.
 
 ### 3.3 Exporter Logic
 To correctly write the file:
@@ -159,7 +163,9 @@ If re-implementing this tool from scratch, ensure:
 4.  [ ] **Region "K7"** is written as 2 bytes (`0x4B 0x37`) without a trailing null.
 5.  [ ] **ID Look-Ahead:** The ID for the current waypoint is written to the *next* record's ID slot.
 6.  [ ] **CRC32** is calculated on bytes 0-4771 and written to 4772.
-   
+
+---
+
 ## 7. Addendum: Data Content Standards (Phantom Records & Nulls)
 
 ### 7.1 The "Phantom Record" (Termination)
