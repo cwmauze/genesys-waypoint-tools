@@ -82,6 +82,28 @@
         tr.drag-over { border-top: 3px solid var(--primary) !important; background: rgba(71, 141, 245, 0.05); }
         #drag-ghost { position: fixed; top: -1000px; left: -1000px; background: var(--card); border: 2px solid var(--primary); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); pointer-events: none; z-index: 5000; opacity: 0.95; }
         #drag-ghost table { margin: 0; }
+        
+        .row-number { text-align: center; font-family: monospace; opacity: 0.7; font-size: 11px; }
+
+        /* MODIFIED TOGGLE POSITION v8.0.4.1 (Stacked Above Layer Menu) */
+        .map-toggle-panel { 
+            position: absolute; top: 12px; right: 10px; z-index: 4001; 
+            background: var(--card); padding: 6px 10px; border-radius: 4px; 
+            border: 1px solid var(--border); font-size: 11px; display: flex; align-items: center; gap: 6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            color: var(--text);
+            pointer-events: auto;
+        }
+        /* Pushing the standard Leaflet controls down to make room for our fixed panel */
+        .leaflet-top.leaflet-right { top: 45px !important; }
+
+        .leaflet-control-layers-list input { width: auto !important; margin-right: 5px !important; display: inline-block !important; }
+        .leaflet-control-layers-list label { display: flex !important; align-items: center !important; }
+
+        .numbered-marker {
+            background: var(--primary); border: 2px solid white; border-radius: 50%;
+            color: white; font-weight: bold; text-align: center; line-height: 20px; font-size: 10px;
+        }
     </style>
 </head>
 <body onload="startClock(); initStickyObserver();" onclick="hideContextMenu()">
@@ -92,11 +114,11 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="showHistory()">v8.0.1 (View History)</span>
+            <span class="version-subtitle" onclick="showHistory()">v8.0.4.1 (View History)</span>
             <a href="mailto:cistern_fob3m@icloud.com?subject=IDU%20Tool%20Feedback" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools/tree/main" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
-        <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
+        <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn" style="font-size: 18px; padding: 6px 12px;">☀️</button>
     </div>
 
     <div style="font-size: 13px; color: #90949c; margin-bottom: 25px; line-height: 1.5; max-width: 1000px; border-left: 2px solid var(--border); padding-left: 15px;">
@@ -135,11 +157,11 @@
     <div class="action-bar" id="actionBar">
         <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on Map <span>STREET / SAT / SECTIONAL</span></button>
         <span style="font-size: 12px; font-weight: bold; color: var(--primary); margin-right: 10px; margin-left: 10px;">EXPORT:</span>
-        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);">Download user.dat <span>GENESYS IDU</span></button>
-        <button class="btn" onclick="exportToRTE()" style="background-color: #9b59b6;">Download .RTE <span>FLIGHT PLAN</span></button>
-        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);">Download user.wpt <span>GARMIN GNS / GTN</span></button>
-        <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Download CSV <span>COMPLETE FLIGHT</span></button>
-        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1; color: white;">Export KML <span>GOOGLE EARTH</span></button>
+        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);">Export user.dat <span>GENESYS IDU</span></button>
+        <button class="btn" onclick="exportToRTE()" style="background-color: #9b59b6;">Export .RTE <span>FLIGHT PLAN</span></button>
+        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);">Export user.wpt <span>GARMIN GNS / GTN</span></button>
+        <button class="btn" onclick="exportCompleteFlight()" style="background-color: var(--dispatch);">Export CSV <span>COMPLETE FLIGHT</span></button>
+        <button class="btn btn-secondary" onclick="exportKML()" style="background-color: #6f42c1; color: white;">Export KML <span>GOOGLE EARTH / FOREFLIGHT</span></button>
         <div style="flex-grow: 1;"></div>
         <button class="btn btn-danger" onclick="removeAll()">CLEAR ALL DATA</button>
     </div>
@@ -148,6 +170,7 @@
         <thead id="tableHeader">
             <tr id="headerRow">
                 <th style="width: 3%;"></th>
+                <th style="width: 3%; text-align: center;">#</th>
                 <th style="width: 10%;">Identifier</th>
                 <th style="width: 14%;">Name</th>
                 <th style="width: 12%;" class="clickable-header" onclick="toggleCoordinateFormat()">
@@ -176,19 +199,23 @@
         <div class="modal-content">
             <h3 style="margin-top:0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Project version history</h3>
             <div class="modal-body" id="modal-body">
-                <strong>v8.0.1:</strong> Corrected .RTE Checksum offset to 4768 (FILE_SIZE - 8) to match v12 Golden Master.<br>
-                <strong>v8.0:</strong> Consolidated Build. Integrated Genesys .RTE Import/Export (Phantom Record Architecture).<br>
-                <strong>v7.6.5:</strong> Strict Garmin user.wpt alignment (Headerless, 4 columns, fixed precision); Removed elevation/comments from Garmin.<br>
-                <strong>v7.6.4:</strong> Action Bar hidden until data is present; Added matter-of-fact description.<br>
-                <strong>v7.6.3:</strong> Reduced header height; Click-to-Toggle subtitle; Header separators.<br>
-                <strong>v7.6.0:</strong> Integrated Coordinate Toggle into column headers.<br>
-                <strong>v7.1 Stable:</strong> Core logic synchronized with binary engine.
+                <strong>v8.0.4.1:</strong> Stacking fix. Moved "Show route" panel physically above the Leaflet layer menu and updated casing.<br>
+                <strong>v8.0.4:</strong> UI Layout Fix. Restored inline map radio buttons and modernized theme switcher.<br>
+                <strong>v8.0.3.1:</strong> UI Patch. Fixed map toggle visibility.<br>
+                <strong>v8.0.3:</strong> Enhanced Map Preview. Hybrid "Context-Aware" logic added for .RTE files.<br>
+                <strong>v8.0.2:</strong> UI Updates. Added numbering column.<br>
+                <strong>v8.0.1:</strong> Corrected .RTE Checksum offset.<br>
+                <strong>v8.0:</strong> Consolidated Build.
             </div>
             <button class="btn btn-secondary" style="margin-top:20px" onclick="closeHistory()">Close</button>
         </div>
     </div>
 
     <div id="mapOverlay">
+        <div class="map-toggle-panel">
+            <input type="checkbox" id="routeToggle" onchange="showMap()" style="width:auto; margin:0;">
+            <label for="routeToggle" style="white-space:nowrap; cursor:pointer;">Show route</label>
+        </div>
         <div id="map"></div>
         <div style="padding: 10px; background: var(--secondary); text-align: right;"><button class="btn btn-danger" onclick="hideMap()">Close map</button></div>
     </div>
@@ -197,18 +224,18 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // --- CONSTANTS ---
-const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016; // DAT Constants
-const RTE = { // RTE Constants
+const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016; 
+const RTE = { 
     FILE_SIZE: 4776,
     HEADER_SIZE: 56,
     REC_SIZE: 72,
     NAME_START: 3032,
     NAME_SIZE: 31,
-    CRC_OFFSET: 4768 // FIXED: FILE_SIZE - 8
+    CRC_OFFSET: 4768 
 };
 
-let leafletMap = null, markerLayer = null, pasteTimer, draggedRow = null;
-let coordFormat = 'DD'; 
+let leafletMap = null, markerLayer = null, routeLayer = null, pasteTimer, draggedRow = null;
+let coordFormat = 'DD', sessionContext = 'DB'; 
 const tbody = document.getElementById('table-body');
 
 function initStickyObserver() {
@@ -310,7 +337,7 @@ function validateAndExportGarmin() {
 }
 
 function checkAndExportGarmin() {
-    let csv = ""; // v7.6.5 Strictly headerless
+    let csv = ""; 
     tbody.querySelectorAll('tr').forEach(r => {
         const inp = r.querySelectorAll('input');
         if (inp.length >= 4) {
@@ -318,7 +345,6 @@ function checkAndExportGarmin() {
             const comment = inp[1].value.trim().toUpperCase().substring(0, 25);
             const lat = parseFloat(parseCoordinate(inp[2].value)).toFixed(9);
             const lon = parseFloat(parseCoordinate(inp[3].value)).toFixed(8);
-            // Col A: ID, Col B: Comment, Col C: Lat, Col D: Lon
             csv += `${id},${comment},${lat},${lon}\n`;
         }
     });
@@ -354,9 +380,11 @@ function processFile() {
     if (f.files.length > 0) {
         resetCoordinateUI();
         const file = f.files[0], reader = new FileReader(), ext = file.name.toLowerCase().split('.').pop();
+        sessionContext = (ext === 'rte') ? 'RTE' : 'DB';
+        document.getElementById('routeToggle').checked = (sessionContext === 'RTE');
         reader.onload = e => {
             if (ext === 'dat') decodeBinary(e.target.result);
-            else if (ext === 'rte') decodeRTE(e.target.result); // NEW RTE HANDLER
+            else if (ext === 'rte') decodeRTE(e.target.result); 
             else if (ext === 'kml' || ext === 'xml') parseKML(e.target.result);
             else smartParse(e.target.result);
             logAction("File loaded", file.name, "Success");
@@ -365,97 +393,59 @@ function processFile() {
     }
 }
 
-// --- RTE IMPORTER (Phantom Record / N+1 Shift) ---
 function decodeRTE(buf) {
     const view = new DataView(buf);
     const bytes = new Uint8Array(buf);
-    
     const count = view.getUint32(0, true);
     if (count <= 0 || count > 200) { alert("Invalid Count: " + count); return; }
-    
     const wps = [];
     for (let i = 0; i < count; i++) {
-        // COORDINATES are in Record 'i'
         let coordOffset = RTE.HEADER_SIZE + (i * RTE.REC_SIZE);
         let lat = view.getFloat64(coordOffset + 24, true);
         let lon = view.getFloat64(coordOffset + 32, true);
-
-        // DESCRIPTION is in Name Block 'i'
         let nameOffset = RTE.NAME_START + (i * RTE.NAME_SIZE);
         let name = readRTEString(bytes, nameOffset, RTE.NAME_SIZE);
-
-        // ID is in Record 'i+1' (Phantom Record)
         let idOffset = RTE.HEADER_SIZE + ((i + 1) * RTE.REC_SIZE) + 8;
         let id = readRTEString(bytes, idOffset, 6);
-
         if (!id) id = "WP " + (i + 1);
-        
         wps.push({ id: id, name: name, lat: lat.toFixed(6), lon: lon.toFixed(6), elev: 0, brg: 0 });
     }
     populateTable(wps);
 }
 
-// --- RTE EXPORTER (Phantom Record / N+1 Shift) ---
 function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
-    if (rows.length < 2) return alert("RTE Export requires at least 2 waypoints (Start/End).");
-
+    if (rows.length < 2) return alert("RTE Export requires at least 2 waypoints.");
     let buffer = new ArrayBuffer(RTE.FILE_SIZE);
     let view = new DataView(buffer);
-    
-    // 1. Header: Count
     view.setUint32(0, rows.length, true);
-
     rows.forEach((r, i) => {
         const inp = r.querySelectorAll('input');
         const id = inp[0].value.toUpperCase().trim();
         const nm = inp[1].value.toUpperCase().trim();
         const lat = parseFloat(parseCoordinate(inp[2].value));
         const lon = parseFloat(parseCoordinate(inp[3].value));
-        
         let currentRecOff = RTE.HEADER_SIZE + (i * RTE.REC_SIZE);
-        
-        // Origin Flag (Record 0 Only)
-        if (i === 0) {
-            view.setUint8(currentRecOff, 0xB3);
-            view.setUint8(currentRecOff + 1, 0x01);
-        } else {
-            view.setUint8(currentRecOff, 0x00);
-            view.setUint8(currentRecOff + 1, 0x00);
-        }
-
-        // ID WRITING (Write to Record N+1)
+        if (i === 0) { view.setUint8(currentRecOff, 0xB3); view.setUint8(currentRecOff + 1, 0x01); }
+        else { view.setUint8(currentRecOff, 0x00); view.setUint8(currentRecOff + 1, 0x00); }
         let nextRecOff = RTE.HEADER_SIZE + ((i + 1) * RTE.REC_SIZE);
-        writeRTEString(view, nextRecOff + 8, id, 6, true); // forceNull=true
-
-        // Write "K7" to Next Record (forceNull=false)
-        writeRTEString(view, nextRecOff + 14, "K7", 2, false); //
-
-        // COORDINATES (Write to Record N)
+        writeRTEString(view, nextRecOff + 8, id, 6, true); 
+        writeRTEString(view, nextRecOff + 14, "K7", 2, false); 
         view.setFloat64(currentRecOff + 24, lat, true);
         view.setFloat64(currentRecOff + 32, lon, true);
         view.setFloat32(currentRecOff + 40, 4.0, true);
-
-        // Write "K7" to Current Record (forceNull=false)
-        writeRTEString(view, currentRecOff + 14, "K7", 2, false); //
-
-        // Name Block
+        writeRTEString(view, currentRecOff + 14, "K7", 2, false); 
         let nameOff = RTE.NAME_START + (i * RTE.NAME_SIZE);
-        writeRTEString(view, nameOff, nm, RTE.NAME_SIZE, true); // forceNull=true
+        writeRTEString(view, nameOff, nm, RTE.NAME_SIZE, true); 
     });
-
-    // CRC32 - Corrected Range (0 to FILE_SIZE - 8)
     let crc = calculateRTECRC(new Uint8Array(buffer).slice(0, RTE.CRC_OFFSET));
     view.setUint32(RTE.CRC_OFFSET, crc, true);
-
-    // Filename
     let startID = rows[0].querySelectorAll('input')[0].value;
     let endID = rows[rows.length-1].querySelectorAll('input')[0].value;
     downloadBlob(new Blob([buffer]), generateRTEFilename(startID, endID));
     logAction("Exported RTE", "Flight Plan", "Success");
 }
 
-// --- RTE HELPERS ---
 function readRTEString(bytes, offset, length) {
     let str = "";
     if (offset + length > bytes.length) return "";
@@ -474,10 +464,9 @@ function writeRTEString(view, offset, str, maxLength, forceNull) {
         written++;
     }
     while (written < maxLength) {
-        view.setUint8(offset + written, 0x20); // Space Pad
+        view.setUint8(offset + written, 0x20); 
         written++;
     }
-    // Strict Force Null: Overwrite last byte
     if (forceNull) view.setUint8(offset + maxLength - 1, 0x00); 
 }
 
@@ -560,21 +549,38 @@ function exportKML() {
 
 function showMap() {
     document.getElementById('mapOverlay').style.display = 'block';
+    const isRouteEnabled = document.getElementById('routeToggle').checked;
     if (!leafletMap) {
         leafletMap = L.map('map').setView([39.8283, -98.5795], 4);
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: 'OSM'}), sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution: 'Esri'}), sec = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {attribution: 'FAA'});
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: 'OSM'}), 
+              sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution: 'Esri'}), 
+              sec = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {attribution: 'FAA'});
         osm.addTo(leafletMap); L.control.layers({ "Street Map": osm, "Satellite": sat, "VFR Sectional": sec }).addTo(leafletMap);
     }
     if (markerLayer) leafletMap.removeLayer(markerLayer);
+    if (routeLayer) leafletMap.removeLayer(routeLayer);
     markerLayer = L.layerGroup().addTo(leafletMap);
-    let bounds = [];
-    tbody.querySelectorAll('tr').forEach(r => {
+    routeLayer = L.polyline([], {color: 'magenta', weight: 3, dashArray: '5, 10'}).addTo(leafletMap);
+    let bounds = [], routeCoords = [];
+    tbody.querySelectorAll('tr').forEach((r, idx) => {
         const i = r.querySelectorAll('input');
         if (i.length >= 4) {
-            const lat = parseCoordinate(i[2].value), lon = parseCoordinate(i[3].value);
-            if(!isNaN(lat) && !isNaN(lon)) { L.marker([lat, lon]).addTo(markerLayer).bindPopup(`<b>${i[0].value}</b><br>${i[1].value}`); bounds.push([lat, lon]); }
+            const lat = parseFloat(parseCoordinate(i[2].value)), lon = parseFloat(parseCoordinate(i[3].value));
+            if(!isNaN(lat) && !isNaN(lon)) {
+                const pos = [lat, lon];
+                bounds.push(pos);
+                routeCoords.push(pos);
+                if (isRouteEnabled) {
+                    const icon = L.divIcon({ className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20] });
+                    L.marker(pos, {icon: icon}).addTo(markerLayer).bindPopup(`<b>#${idx+1}: ${i[0].value}</b><br>${i[1].value}`);
+                } else {
+                    L.marker(pos).addTo(markerLayer).bindPopup(`<b>${i[0].value}</b><br>${i[1].value}`);
+                }
+            }
         }
     });
+    if (isRouteEnabled && routeCoords.length > 1) routeLayer.setLatLngs(routeCoords);
+    else routeLayer.setLatLngs([]);
     if(bounds.length) leafletMap.fitBounds(bounds);
     setTimeout(() => leafletMap.invalidateSize(), 200);
 }
@@ -602,7 +608,14 @@ function populateTable(wps) {
     const frag = document.createDocumentFragment();
     wps.forEach(wp => { const row = document.createElement('tr'); createRowCells(row, wp); frag.appendChild(row); });
     tbody.appendChild(frag);
+    updateRowNumbers();
     updateColumnVisibility();
+}
+
+function updateRowNumbers() {
+    tbody.querySelectorAll('tr').forEach((r, i) => {
+        if(r.cells.length > 1) r.cells[1].innerText = i + 1;
+    });
 }
 
 function createRowCells(r, wp) {
@@ -615,7 +628,11 @@ function createRowCells(r, wp) {
         cloneTable.appendChild(cloneRow); ghost.appendChild(cloneTable); e.dataTransfer.setDragImage(ghost, 20, 20);
         setTimeout(() => r.classList.add('dragging'), 0);
     });
-    r.addEventListener('dragend', () => { draggedRow = null; r.classList.remove('dragging'); tbody.querySelectorAll('tr').forEach(row => row.classList.remove('drag-over')); });
+    r.addEventListener('dragend', () => { 
+        draggedRow = null; r.classList.remove('dragging'); 
+        tbody.querySelectorAll('tr').forEach(row => row.classList.remove('drag-over'));
+        updateRowNumbers(); 
+    });
     r.addEventListener('dragover', (e) => { e.preventDefault(); if (r !== draggedRow) r.classList.add('drag-over'); });
     r.addEventListener('dragleave', () => r.classList.remove('drag-over'));
     r.addEventListener('drop', (e) => {
@@ -626,14 +643,14 @@ function createRowCells(r, wp) {
             else r.before(draggedRow);
         }
     });
-
     const c0 = r.insertCell(0); c0.innerText = '⠿'; c0.className = 'drag-handle';
+    const cNum = r.insertCell(1); cNum.className = 'row-number'; 
     [wp.id, wp.name, formatCoord(wp.lat, true), formatCoord(wp.lon, false), wp.elev || '0', wp.brg || '0'].forEach((v, i) => {
-        const cell = r.insertCell(i+1);
+        const cell = r.insertCell(i+2); 
         const input = document.createElement('input'); input.value = v; input.oninput = () => updateQuickLinks(r);
         cell.appendChild(input);
     });
-    const lC = r.insertCell(7); lC.className = 'quick-links action-col'; updateQuickLinks(r);
+    const lC = r.insertCell(8); lC.className = 'quick-links action-col'; updateQuickLinks(r);
 }
 
 function updateQuickLinks(r) {
@@ -650,17 +667,22 @@ function updateColumnVisibility() {
 }
 
 function downloadBlob(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
-function toggleTheme() { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); }
-
+function toggleTheme() { 
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('themeBtn').innerText = isDark ? '☀️' : '🌑';
+}
 function removeAll() { 
     if(confirm("Clear data?")) { 
         tbody.innerHTML = ''; document.getElementById('fileInput').value = ''; document.getElementById('bulkInput').value = ''; 
         resetCoordinateUI(); updateColumnVisibility(); logAction("Cleared", "None", "Ready"); 
     } 
 }
-
 function debouncePaste() { clearTimeout(pasteTimer); pasteTimer = setTimeout(() => { const b = document.getElementById('bulkInput').value.trim(); if (b) smartParse(b); }, 500); }
-function addRows(n) { for (let j = 0; j < n; j++) { const r = document.createElement('tr'); createRowCells(r, { id:'', name:'', lat:'', lon:'', elev:'0', brg:'0' }); tbody.appendChild(r); } updateColumnVisibility(); }
+function addRows(n) { 
+    for (let j = 0; j < n; j++) { const r = document.createElement('tr'); createRowCells(r, { id:'', name:'', lat:'', lon:'', elev:'0', brg:'0' }); tbody.appendChild(r); } 
+    updateRowNumbers(); updateColumnVisibility(); 
+}
 function showHistory() { document.getElementById('historyModal').style.display = 'block'; }
 function closeHistory() { document.getElementById('historyModal').style.display = 'none'; }
 function hideMap() { document.getElementById('mapOverlay').style.display = 'none'; }
