@@ -7,8 +7,8 @@ This tool exists because Genesys Aerosystems apparently believes that manual dat
 
 Despite the sophistication of their EFIS hardware, Genesys provides no official, manufacturer-supported method for the bulk upload of user waypoints or complex flight plans. According to their technical support, if you need to load a mission database, your "approved" options are:
 
-1.  **Cockpit Manual Entry:** Spend hours twisting physical IDU knobs to enter every identifier, name, and coordinate one by one.
-2.  **The "Trainer" Method:** Use their PC-based EFIS training tool to manually click through a virtual version of the exact same menus to recreate the data.
+1.  **Manual entry in the cockpit:** Spend hours twisting physical IDU knobs to enter every identifier, name, and coordinate one by one.
+2.  **The "EFIS Training Tool" method:** Use their PC-based EFIS training tool to manually click through a virtual version of the exact same menus to recreate the data.
 
 In most industries, this is merely a waste of time but in aviation—specifically in the **Rotary-Wing EMS** world where this tool was born—this is a genuine safety issue. Forcing a pilot to manually transcribe hundreds of lines of coordinate data or complex multi-leg routes is an invitation for human error. In a mission-critical HEMS environment, a single fat-fingered digit isn't just a typo; it’s a potential life-or-death navigation failure.
 
