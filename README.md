@@ -10,9 +10,9 @@ Despite the sophistication of their EFIS hardware, Genesys provides no official,
 1.  **Cockpit Manual Entry:** Spend hours twisting physical IDU knobs to enter every identifier, name, and coordinate one by one.
 2.  **The "Trainer" Method:** Use their PC-based EFIS training tool to manually click through a virtual version of the exact same menus to recreate the data.
 
-In most industries, this is called a "waste of time." In aviation—specifically in the **Rotary-Wing EMS** world where this tool was born—this is a genuine safety issue. Forcing a pilot to manually transcribe hundreds of lines of coordinate data or complex multi-leg routes is an invitation for human error. In a mission-critical HEMS environment, a single fat-fingered digit isn't just a typo; it’s a potential life-or-death navigation failure.
+In most industries, this is merely a waste of time but in aviation—specifically in the **Rotary-Wing EMS** world where this tool was born—this is a genuine safety issue. Forcing a pilot to manually transcribe hundreds of lines of coordinate data or complex multi-leg routes is an invitation for human error. In a mission-critical HEMS environment, a single fat-fingered digit isn't just a typo; it’s a potential life-or-death navigation failure.
 
-While other vendors (like Garmin) have spent the last decade making data integration seamless, Genesys has left it to the end-users to engineer their own safety nets. We decided our time was better spent reverse-engineering the binary formats than playing "entry clerk" with a $50k avionics suite.
+While other vendors (like Garmin) have spent the last decade making data integration seamless, Genesys has left it to the end-users to engineer their own safety nets. We decided our time was better spent reverse-engineering the binary formats than playing data entry clerk with a $50k avionics suite.
 
 ## Technical Specifications
 For a deep dive into the engineering behind this tool, refer to the included technical documentation.
