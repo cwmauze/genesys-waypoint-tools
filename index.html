@@ -79,6 +79,8 @@
             <strong style="color:var(--primary); font-size:14px;">Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        v8.2.1.4 - Integrated Smart Spreadsheet Paste (Row, Column, and Grid detection).<br>
+        v8.2.1.3 - Fixed Super-Parser logic to correctly import waypoint names from CSVs.<br>
         v8.2.1.2 - Reintegrated technical reference links to instructions block.<br>
         v8.2.1.1 - Normalized Identifier to ALL CAPS; Supressed "Fix" labels in Name column.<br>
         v8.2.1.0 - Disabled OS autocorrect/autocapitalize on all entry fields.<br>
@@ -86,24 +88,6 @@
         v8.2.0.8 - Restored automatic "Show route" toggle for .RTE files.<br>
         v8.2.0.7 - Fixed Clear All logic to reset bulk paste and file inputs.<br>
         v8.2.0.6 - Integrated Heuristic Super-Parser for dirty spreadsheet data.<br>
-        v8.2.0.5 - Fixed "Show route" toggle logic for Map Preview.<br>
-        v8.2.0.4 - Centered Version History modal with backdrop dismissal.<br>
-        v8.2.0.3 - Integrated clickable Version History; Persistent UI baseline.<br>
-        v8.2.0.2 - Fixed K/P Prefix Priority & 3-letter NAVAID logic.<br>
-        v8.2.0.1 - Fixed dynamic row search binding bug.<br>
-        v8.2.0.0 - Added map layer collision fix & .RTE route toggle defaults.<br>
-        v8.1.1.9 - Fixed Longitude "Double Negative" Hemisphere Lock.<br>
-        v8.1.1.8 - Integrated IndexedDB Lazy Sync for FAA master data.<br>
-        v8.1.1.7 - Added ForeFlight & Google Earth deep-linking.<br>
-        v8.1.1.6 - Binary decoder optimization for 88-byte .dat records.<br>
-        v8.1.1.5 - Added Magenta polyline route visualization.<br>
-        v8.1.1.4 - Implemented drag-and-drop row reordering.<br>
-        v8.1.1.3 - Added Garmin user.wpt export compatibility.<br>
-        v8.1.1.2 - Fixed sticky header offset resizing bug.<br>
-        v8.1.1.1 - Added dark mode/light mode theme toggle.<br>
-        v8.1.1.0 - Initial KML/XML ingestion engine.<br>
-        v8.1.0.9 - Added CSV bulk paste normalization.<br>
-        v8.1.0.8 - Improved coordinate parser for DDM/DMS formats.
     </div>
 </div>
 
@@ -111,7 +95,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.2.1.2 Beta</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.2.1.4 Beta</span>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
@@ -293,58 +277,111 @@ function parseKML(text) {
     populateTable(wps);
 }
 
-// --- CONSOLIDATED SUPER-PARSER v8.2.0.6 Baseline ---
 function smartParse(text) {
     const wps = [];
     const ddmPattern = /(\d{1,3}\s+\d{1,2}\.\d{1,4}\s*[NS])\s*(\d{1,3}\s+\d{1,2}\.\d{1,4}\s*[EW])/gi;
     const decimalPattern = /(\d{2}\.\d{6,})(-\d{2,3}\.\d{6,})/g;
     let match, lastIndex = 0;
 
-    // PASS 1: Spreadsheet/DDM Pattern
     while ((match = ddmPattern.exec(text)) !== null) {
         let gapText = text.substring(lastIndex, match.index).trim();
-        let id = "WP";
-        let idCandidate = gapText.match(/^([A-Z0-9]{3,8})/i);
-        if (idCandidate) {
-            id = idCandidate[1].toUpperCase();
-            if (id.startsWith('W') && id.length > 5) id = id.substring(1);
+        let id = "WP", name = "";
+        let lines = gapText.split(/\r?\n/);
+        let lastLine = lines[lines.length-1].trim().replace(/[,\s|;]+$/, "");
+        if (lastLine) {
+            let parts = lastLine.split(/[,\t|;]/);
+            id = parts[0].trim().substring(0, 5).toUpperCase();
+            if (parts.length >= 2) name = parts[1].trim();
+            else {
+                let spaceParts = parts[0].trim().split(/\s+/);
+                if (spaceParts.length >= 2) { id = spaceParts[0].substring(0, 5).toUpperCase(); name = spaceParts.slice(1).join(" "); }
+            }
         }
-        wps.push({ id: id.substring(0, 5), name: "Import", lat: parseCoordinate(match[1]), lon: parseCoordinate(match[2]) });
+        if (name.toUpperCase() === id) name = "";
+        wps.push({ id: id, name: name || "Import", lat: parseCoordinate(match[1]), lon: parseCoordinate(match[2]) });
         lastIndex = ddmPattern.lastIndex;
     }
 
-    // PASS 2: Decimal Continuous Streams
     if (wps.length === 0) {
         while ((match = decimalPattern.exec(text)) !== null) {
-            let lookback = text.substring(Math.max(0, match.index - 15), match.index);
-            let idMatch = lookback.match(/[A-Z0-9]{3,5}/);
-            wps.push({ id: idMatch ? idMatch[0] : "WP", name: "Import", lat: parseFloat(match[1]).toFixed(6), lon: parseFloat(match[2]).toFixed(6) });
+            let lookback = text.substring(Math.max(0, match.index - 15), match.index).trim().replace(/[,\s|;]+$/, "");
+            let id = "WP", name = "";
+            let parts = lookback.split(/[,\t|;]/);
+            let lastPart = parts[parts.length-1].trim();
+            if (lastPart) {
+                let spaceParts = lastPart.split(/\s+/);
+                id = spaceParts[0].substring(0, 5).toUpperCase();
+                if (spaceParts.length >= 2) name = spaceParts.slice(1).join(" ");
+            }
+            if (name.toUpperCase() === id) name = "";
+            wps.push({ id: id, name: name || "Import", lat: parseFloat(match[1]).toFixed(6), lon: parseFloat(match[2]).toFixed(6) });
         }
     }
 
-    // PASS 3: Fallback Line-by-Line
     if (wps.length === 0) {
         const lines = text.split(/\r?\n/);
         const stdPattern = /(-?\d{1,3}[°\s\-\.][0-6]?\d[\s\-\.][0-6]?\d?\.?\d*[N|S|E|W]?)|(-?\d{1,3}\.\d{4,})/gi;
         lines.forEach(l => {
             const m = l.match(stdPattern);
             if (m && m.length >= 2) {
-                const tokens = l.trim().split(/[\s,;|]+/);
-                let id = (tokens.length > 0 && !m[0].includes(tokens[0])) ? tokens[0].substring(0, 5).toUpperCase() : "WP";
-                wps.push({ id: id, name: "Import", lat: parseCoordinate(m[0]), lon: parseCoordinate(m[1]) });
+                let id = "WP", name = "";
+                let firstCoordIdx = l.indexOf(m[0]);
+                let before = l.substring(0, firstCoordIdx).trim().replace(/[,\s|;]+$/, "");
+                if (before) {
+                    let parts = before.split(/[,\t|;]/);
+                    id = parts[0].trim().substring(0, 5).toUpperCase();
+                    if (parts.length >= 2) { name = parts[1].trim(); }
+                    else {
+                        let spaceParts = parts[0].trim().split(/\s+/);
+                        if (spaceParts.length >= 2) { id = spaceParts[0].substring(0, 5).toUpperCase(); name = spaceParts.slice(1).join(" "); }
+                    }
+                }
+                if (name.toUpperCase() === id) name = "";
+                wps.push({ id: id, name: name || "Import", lat: parseCoordinate(m[0]), lon: parseCoordinate(m[1]) });
             }
         });
     }
-
     populateTable(wps);
-    logAction("Parsed " + wps.length + " waypoints from bulk data.");
+    logAction("Parsed " + wps.length + " waypoints from data.");
 }
 
-// --- TABLE ENGINE ---
 function populateTable(wps) {
     tbody.innerHTML = '';
     wps.forEach(wp => { const r = document.createElement('tr'); createRowCells(r, wp); tbody.appendChild(r); });
     updateRowNumbers(); updateColumnVisibility();
+}
+
+// --- v8.2.1.4 Smart Spreadsheet Paste Handler ---
+function handleTablePaste(targetInput, e) {
+    const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+    if (!pasteData.includes('\n') && !pasteData.includes('\t')) return; // Single cell, let default behavior handle
+    
+    e.preventDefault();
+    const rows = pasteData.split(/\r?\n/).filter(line => line.length > 0);
+    const currentRow = targetInput.closest('tr');
+    const currentColIdx = Array.from(currentRow.querySelectorAll('input')).indexOf(targetInput);
+    let targetRow = currentRow;
+
+    rows.forEach((rowContent, rIdx) => {
+        if (!targetRow) {
+            addRows(1);
+            targetRow = tbody.lastElementChild;
+        }
+        const cells = rowContent.split('\t');
+        const rowInputs = targetRow.querySelectorAll('input');
+        
+        cells.forEach((cellVal, cIdx) => {
+            const inputIdx = currentColIdx + cIdx;
+            if (rowInputs[inputIdx]) {
+                let cleanVal = cellVal.trim();
+                if (inputIdx === 0) cleanVal = cleanVal.substring(0, 5).toUpperCase();
+                rowInputs[inputIdx].value = cleanVal;
+                rowInputs[inputIdx].dispatchEvent(new Event('input')); // Trigger lookups/links
+            }
+        });
+        targetRow = targetRow.nextElementSibling;
+    });
+    logAction(`Smart Pasted ${rows.length} records`);
 }
 
 function createRowCells(r, wp) {
@@ -365,25 +402,22 @@ function createRowCells(r, wp) {
     r.insertCell(1).className = 'row-number';
     [wp.id, wp.name, wp.lat, wp.lon, wp.elev || '0', wp.brg || '0'].forEach((v, i) => {
         const cell = r.insertCell(i+2); const input = document.createElement('input'); input.value = v || '';
-        
-        input.setAttribute('autocorrect', 'off');
-        input.setAttribute('spellcheck', 'false');
-        input.setAttribute('autocapitalize', 'none');
-        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('autocorrect', 'off'); input.setAttribute('spellcheck', 'false');
+        input.setAttribute('autocapitalize', 'none'); input.setAttribute('autocomplete', 'off');
+
+        input.addEventListener('paste', (e) => handleTablePaste(input, e));
 
         if(i === 0) {
             input.style.textTransform = "uppercase";
             input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
             setupIdLookup(input);
         }
-        
         input.oninput = () => updateQuickLinks(r); 
         cell.appendChild(input);
     });
     const lC = r.insertCell(8); lC.className = 'quick-links'; updateQuickLinks(r);
 }
 
-// --- SEARCH ENGINE ---
 function setupIdLookup(input) {
     let timer;
     input.addEventListener('input', () => {
@@ -396,25 +430,16 @@ function setupIdLookup(input) {
             req.onsuccess = (e) => {
                 const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readonly");
                 const store = tx.objectStore(FAA_STORE_NAME);
-
                 if ((id.startsWith('K') || id.startsWith('P')) && id.length === 4) {
-                    let strippedId = id.substring(1);
-                    let getStripped = store.get(strippedId);
+                    let strippedId = id.substring(1), getStripped = store.get(strippedId);
                     getStripped.onsuccess = () => {
                         let res = getStripped.result;
-                        if (res && res.type === 'APT') {
-                            applyDataToRow(res, inps, row);
-                        } else {
-                            let getExact = store.get(id);
-                            getExact.onsuccess = () => { if (getExact.result) applyDataToRow(getExact.result, inps, row); };
-                        }
+                        if (res && res.type === 'APT') { applyDataToRow(res, inps, row); } 
+                        else { let getExact = store.get(id); getExact.onsuccess = () => { if (getExact.result) applyDataToRow(getExact.result, inps, row); }; }
                     };
                 } else {
                     let getRequest = store.get(id);
-                    getRequest.onsuccess = () => {
-                        let res = getRequest.result;
-                        if (res) applyDataToRow(res, inps, row);
-                    };
+                    getRequest.onsuccess = () => { let res = getRequest.result; if (res) applyDataToRow(res, inps, row); };
                 }
             };
         }, 400);
@@ -423,9 +448,7 @@ function setupIdLookup(input) {
 
 function applyDataToRow(res, inps, row) {
     let fixedLat = Math.abs(parseFloat(res.lat)), fixedLon = -Math.abs(parseFloat(res.lon));
-    
     inps[1].value = (res.type === 'FIX' || res.type === 'INT') ? "" : res.name; 
-    
     inps[2].value = fixedLat.toFixed(6); inps[3].value = fixedLon.toFixed(6);
     inps[4].value = (res.type === 'APT') ? Math.round(parseFloat(res.elev) || 0) : 0;
     inps.forEach((inp, idx) => { if(idx > 0 && idx < 5) inp.style.backgroundColor = "rgba(71, 141, 245, 0.1)"; });
@@ -447,26 +470,17 @@ function parseCoordinate(i) {
     return (Math.abs(d) * m).toFixed(6);
 }
 
-// --- MAP ENGINE ---
 function showMap() {
     document.getElementById('mapOverlay').style.display = 'block';
-    
     const routeToggle = document.getElementById('routeToggle');
-    if (lastLoadedExtension === 'rte') {
-        routeToggle.checked = true;
-    } else {
-        routeToggle.checked = false;
-    }
-
+    routeToggle.checked = (lastLoadedExtension === 'rte');
     if (!leafletMap) {
         leafletMap = L.map('map').setView([39.8, -98.5], 4);
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: 'OSM'}), 
               sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution: 'Esri'}), 
               sec = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {attribution: 'FAA'});
-        osm.addTo(leafletMap); 
-        L.control.layers({ "Street": osm, "Satellite": sat, "Sectional": sec }, null, { position: 'bottomright' }).addTo(leafletMap);
-        markerLayer = L.layerGroup().addTo(leafletMap);
-        routeLayer = L.polyline([], {color: 'magenta', weight: 3}).addTo(leafletMap);
+        osm.addTo(leafletMap); L.control.layers({ "Street": osm, "Satellite": sat, "Sectional": sec }, null, { position: 'bottomright' }).addTo(leafletMap);
+        markerLayer = L.layerGroup().addTo(leafletMap); routeLayer = L.polyline([], {color: 'magenta', weight: 3}).addTo(leafletMap);
     }
     toggleRouteLayer(true);
     setTimeout(() => leafletMap.invalidateSize(), 200);
@@ -475,8 +489,7 @@ function showMap() {
 function toggleRouteLayer(isInitial = false) {
     if (!leafletMap || !routeLayer || !markerLayer) return;
     const isRouteEnabled = document.getElementById('routeToggle').checked;
-    const coords = []; let bounds = [];
-    markerLayer.clearLayers(); routeLayer.setLatLngs([]);
+    const coords = []; let bounds = []; markerLayer.clearLayers(); routeLayer.setLatLngs([]);
     tbody.querySelectorAll('tr').forEach((r, idx) => {
         const inps = r.querySelectorAll('input');
         if (inps.length >= 4) {
@@ -485,10 +498,7 @@ function toggleRouteLayer(isInitial = false) {
                 const pos = [lat, lon]; coords.push(pos); bounds.push(pos);
                 const markerOpts = isRouteEnabled ? {icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})} : {};
                 const marker = L.marker(pos, markerOpts).addTo(markerLayer).bindPopup(`<b>${inps[0].value || 'WP'}</b>`);
-                
-                if (isRouteEnabled) {
-                    marker.bindTooltip(inps[0].value || `WP${idx+1}`, { permanent: true, direction: 'top', offset: [0, -10] });
-                }
+                if (isRouteEnabled) { marker.bindTooltip(inps[0].value || `WP${idx+1}`, { permanent: true, direction: 'top', offset: [0, -10] }); }
             }
         }
     });
@@ -496,7 +506,6 @@ function toggleRouteLayer(isInitial = false) {
     if (isInitial && bounds.length > 0) leafletMap.fitBounds(bounds, {padding: [20, 20]});
 }
 
-// --- UI UTILS ---
 function toggleVersionHistory() {
     const overlay = document.getElementById('historyOverlay'), box = document.getElementById('versionHistory');
     const isShowing = overlay.style.display === 'block';
@@ -512,9 +521,7 @@ function removeAll() {
         tbody.innerHTML = '';
         const bulk = document.getElementById('bulkInput'); if (bulk) bulk.value = '';
         const fileInp = document.getElementById('fileInput'); if (fileInp) fileInp.value = '';
-        lastLoadedExtension = '';
-        updateColumnVisibility();
-        logAction("System Reset");
+        lastLoadedExtension = ''; updateColumnVisibility(); logAction("System Reset");
     }
 }
 
@@ -527,7 +534,6 @@ function initStickyObserver() {
     observer.observe(document.getElementById('actionBar'));
 }
 
-// --- EXPORT LOGIC ---
 function validateAndExportGenesys() {
     const rows = [...tbody.querySelectorAll('tr')], headerHex = "9a01000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a00000000000004728a3b76555424027eadf08657853c0";
     let bytes = []; let hBuf = new ArrayBuffer(HEADER_SIZE), hView = new DataView(hBuf); hView.setUint32(0, rows.length, true);
