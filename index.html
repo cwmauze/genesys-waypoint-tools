@@ -79,7 +79,10 @@
             <strong style="color:var(--primary); font-size:14px;">Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
-        v8.2.0.5 - Fixed "Show route" toggle on Map Preview; decoupled toggle logic.<br>
+        v8.2.0.8 - Restored automatic "Show route" toggle for .RTE files.<br>
+        v8.2.0.7 - Fixed Clear All logic to reset bulk paste and file inputs.<br>
+        v8.2.0.6 - Integrated Heuristic Super-Parser for dirty spreadsheet data.<br>
+        v8.2.0.5 - Fixed "Show route" toggle logic for Map Preview.<br>
         v8.2.0.4 - Centered Version History modal with backdrop dismissal.<br>
         v8.2.0.3 - Integrated clickable Version History; Persistent UI baseline.<br>
         v8.2.0.2 - Fixed K/P Prefix Priority & 3-letter NAVAID logic.<br>
@@ -104,7 +107,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.2.0.5 Beta</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.2.0.8 Beta</span>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
@@ -137,7 +140,7 @@
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px;">
         <div style="flex: 1;"><label style="font-size: 13px; font-weight: 600;">Option A: Load file</label><input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt,.xml,.rte" onchange="processFile()"></div>
-        <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk paste</label><textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..." oninput="debouncePaste()"></textarea></div>
+        <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk paste (use with caution):</label><textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..." oninput="debouncePaste()"></textarea></div>
     </div>
 
     <div class="action-bar" id="actionBar">
@@ -279,14 +282,51 @@ function parseKML(text) {
     populateTable(wps);
 }
 
+// --- CONSOLIDATED SUPER-PARSER v8.2.0.6 Baseline ---
 function smartParse(text) {
-    const lines = text.split(/\r?\n/), wps = [];
-    const pattern = /(-?\d{1,3}[°\s\-\.][0-6]?\d[\s\-\.][0-6]?\d?\.?\d*[N|S|E|W]?)|(-?\d{1,3}\.\d{4,})/gi;
-    lines.forEach(l => {
-        const m = l.match(pattern);
-        if (m && m.length >= 2) { wps.push({ id: "WP", name: "Import", lat: parseCoordinate(m[0]), lon: parseCoordinate(m[1]) }); }
-    });
+    const wps = [];
+    const ddmPattern = /(\d{1,3}\s+\d{1,2}\.\d{1,4}\s*[NS])\s*(\d{1,3}\s+\d{1,2}\.\d{1,4}\s*[EW])/gi;
+    const decimalPattern = /(\d{2}\.\d{6,})(-\d{2,3}\.\d{6,})/g;
+    let match, lastIndex = 0;
+
+    // PASS 1: Spreadsheet/DDM Pattern
+    while ((match = ddmPattern.exec(text)) !== null) {
+        let gapText = text.substring(lastIndex, match.index).trim();
+        let id = "WP";
+        let idCandidate = gapText.match(/^([A-Z0-9]{3,8})/i);
+        if (idCandidate) {
+            id = idCandidate[1].toUpperCase();
+            if (id.startsWith('W') && id.length > 5) id = id.substring(1);
+        }
+        wps.push({ id: id.substring(0, 5), name: "Import", lat: parseCoordinate(match[1]), lon: parseCoordinate(match[2]) });
+        lastIndex = ddmPattern.lastIndex;
+    }
+
+    // PASS 2: Decimal Continuous Streams
+    if (wps.length === 0) {
+        while ((match = decimalPattern.exec(text)) !== null) {
+            let lookback = text.substring(Math.max(0, match.index - 15), match.index);
+            let idMatch = lookback.match(/[A-Z0-9]{3,5}/);
+            wps.push({ id: idMatch ? idMatch[0] : "WP", name: "Import", lat: parseFloat(match[1]).toFixed(6), lon: parseFloat(match[2]).toFixed(6) });
+        }
+    }
+
+    // PASS 3: Fallback Line-by-Line
+    if (wps.length === 0) {
+        const lines = text.split(/\r?\n/);
+        const stdPattern = /(-?\d{1,3}[°\s\-\.][0-6]?\d[\s\-\.][0-6]?\d?\.?\d*[N|S|E|W]?)|(-?\d{1,3}\.\d{4,})/gi;
+        lines.forEach(l => {
+            const m = l.match(stdPattern);
+            if (m && m.length >= 2) {
+                const tokens = l.trim().split(/[\s,;|]+/);
+                let id = (tokens.length > 0 && !m[0].includes(tokens[0])) ? tokens[0].substring(0, 5).toUpperCase() : "WP";
+                wps.push({ id: id, name: "Import", lat: parseCoordinate(m[0]), lon: parseCoordinate(m[1]) });
+            }
+        });
+    }
+
     populateTable(wps);
+    logAction("Parsed " + wps.length + " waypoints from bulk data.");
 }
 
 // --- TABLE ENGINE ---
@@ -369,7 +409,7 @@ function updateQuickLinks(r) {
     const i = r.querySelectorAll('input'); if(i.length < 4) return;
     const lat = parseCoordinate(i[2].value), lon = parseCoordinate(i[3].value), c = r.querySelector('.quick-links');
     if (!isNaN(lat) && lat !== 0) {
-        c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight</a> <span class="separator">|</span> <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Earth</a> <span class="separator">|</span> <a href="http://maps.google.com/maps?q=${lat},${lon}" target="_blank">Google Maps</a>`;
+        c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight</a> <span class="separator">|</span> <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a> <span class="separator">|</span> <a href="http://maps.google.com/maps?q=${lat},${lon}" target="_blank">Google Maps</a>`;
     } else { c.innerHTML = ""; }
 }
 
@@ -383,13 +423,15 @@ function parseCoordinate(i) {
 // --- MAP ENGINE ---
 function showMap() {
     document.getElementById('mapOverlay').style.display = 'block';
+    
+    // Check toggle state
     const routeToggle = document.getElementById('routeToggle');
     if (lastLoadedExtension === 'rte') {
         routeToggle.checked = true;
-    } else if (lastLoadedExtension !== '') {
+    } else {
         routeToggle.checked = false;
     }
-    
+
     if (!leafletMap) {
         leafletMap = L.map('map').setView([39.8, -98.5], 4);
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: 'OSM'}), 
@@ -400,68 +442,52 @@ function showMap() {
         markerLayer = L.layerGroup().addTo(leafletMap);
         routeLayer = L.polyline([], {color: 'magenta', weight: 3}).addTo(leafletMap);
     }
-    
-    toggleRouteLayer(true); // Initial draw with centering
+    toggleRouteLayer(true);
     setTimeout(() => leafletMap.invalidateSize(), 200);
 }
 
 function toggleRouteLayer(isInitial = false) {
     if (!leafletMap || !routeLayer || !markerLayer) return;
-
     const isRouteEnabled = document.getElementById('routeToggle').checked;
-    const coords = [];
-    const rows = tbody.querySelectorAll('tr');
-    let bounds = [];
-
-    // Reset current visuals
-    markerLayer.clearLayers();
-    routeLayer.setLatLngs([]);
-
-    rows.forEach((r, idx) => {
+    const coords = []; let bounds = [];
+    markerLayer.clearLayers(); routeLayer.setLatLngs([]);
+    tbody.querySelectorAll('tr').forEach((r, idx) => {
         const inps = r.querySelectorAll('input');
         if (inps.length >= 4) {
-            const lat = parseFloat(parseCoordinate(inps[2].value));
-            const lon = parseFloat(parseCoordinate(inps[3].value));
+            const lat = parseFloat(parseCoordinate(inps[2].value)), lon = parseFloat(parseCoordinate(inps[3].value));
             if (!isNaN(lat) && lat !== 0) {
-                const pos = [lat, lon];
-                coords.push(pos);
-                bounds.push(pos);
-                
-                const markerOpts = {};
-                if (isRouteEnabled) {
-                    markerOpts.icon = L.divIcon({ 
-                        className: 'numbered-marker', 
-                        html: (idx + 1), 
-                        iconSize: [20, 20] 
-                    });
-                }
+                const pos = [lat, lon]; coords.push(pos); bounds.push(pos);
+                const markerOpts = isRouteEnabled ? {icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})} : {};
                 L.marker(pos, markerOpts).addTo(markerLayer).bindPopup(`<b>${inps[0].value || 'WP'}</b>`);
             }
         }
     });
-
-    if (isRouteEnabled && coords.length > 1) {
-        routeLayer.setLatLngs(coords);
-    }
-    
-    if (isInitial && bounds.length > 0) {
-        leafletMap.fitBounds(bounds, {padding: [20, 20]});
-    }
+    if (isRouteEnabled && coords.length > 1) routeLayer.setLatLngs(coords);
+    if (isInitial && bounds.length > 0) leafletMap.fitBounds(bounds, {padding: [20, 20]});
 }
 
 // --- UI UTILS ---
 function toggleVersionHistory() {
-    const overlay = document.getElementById('historyOverlay');
-    const box = document.getElementById('versionHistory');
+    const overlay = document.getElementById('historyOverlay'), box = document.getElementById('versionHistory');
     const isShowing = overlay.style.display === 'block';
-    overlay.style.display = isShowing ? 'none' : 'block';
-    box.style.display = isShowing ? 'none' : 'block';
+    overlay.style.display = isShowing ? 'none' : 'block'; box.style.display = isShowing ? 'none' : 'block';
 }
 function startClock() { setInterval(() => { document.getElementById('local-clock').innerText = new Date().toLocaleTimeString('en-GB', { hour12: false }); }, 1000); }
 function updateRowNumbers() { tbody.querySelectorAll('tr').forEach((r, i) => { if(r.cells[1]) r.cells[1].innerText = i + 1; }); }
 function updateColumnVisibility() { document.getElementById('actionBar').style.display = tbody.rows.length > 0 ? 'flex' : 'none'; }
 function logAction(a) { document.getElementById('last-action').innerText = a; document.getElementById('wp-count-display').innerText = tbody.querySelectorAll('tr').length; }
-function removeAll() { if(confirm("Clear all data?")) { tbody.innerHTML = ''; updateColumnVisibility(); } }
+
+function removeAll() {
+    if (confirm("Clear all data? This will reset the table and all input fields.")) {
+        tbody.innerHTML = '';
+        const bulk = document.getElementById('bulkInput'); if (bulk) bulk.value = '';
+        const fileInp = document.getElementById('fileInput'); if (fileInp) fileInp.value = '';
+        lastLoadedExtension = '';
+        updateColumnVisibility();
+        logAction("System Reset");
+    }
+}
+
 function debouncePaste() { clearTimeout(pasteTimer); pasteTimer = setTimeout(() => { if(document.getElementById('bulkInput').value) smartParse(document.getElementById('bulkInput').value); }, 500); }
 function addRows(n) { for(let i=0; i<n; i++){ const r = document.createElement('tr'); createRowCells(r, {id:'', name:'', lat:'', lon:''}); tbody.appendChild(r); } updateRowNumbers(); updateColumnVisibility(); }
 function toggleTheme() { const isDark = document.body.getAttribute('data-theme') !== 'light'; document.body.setAttribute('data-theme', isDark ? 'light' : 'dark'); document.getElementById('themeBtn').innerText = isDark ? '☀️' : '🌑'; }
