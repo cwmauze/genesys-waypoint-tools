@@ -30,7 +30,7 @@ For a deep dive into the engineering behind this tool, refer to the included tec
 ## Features
 ### Mission Planning & Editing
 * **Visual Route Editor:** Drag-and-drop functionality allows you to re-sequence waypoints visually. No more spreadsheet row cutting-and-pasting.
-* **Flight Plan Integration:** Import an existing `.rte` file, modify the leg sequence, add new waypoints from a bulk paste, and export a forensic-grade binary file ready for the cockpit.
+* **Flight Plan Integration:** Import an existing `.rte` file, modify the leg sequence, add new waypoints from a bulk paste, and export a route file for the cockpit.
 
 ### Core Utilities
 * **Binary Encoding:** Automatically generates valid Genesys `user.dat` and `.rte` files with correct "K7" region codes and CRC checksums.
