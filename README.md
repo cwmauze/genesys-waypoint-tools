@@ -17,16 +17,6 @@ While other vendors (like Garmin) have spent the last decade making data integra
 ## Technical Specifications
 For a deep dive into the engineering behind this tool, refer to the included technical documentation.
 
-### User Waypoints (`user.dat`)
-* **Header Architecture:** The 72-byte fixed header requirements.
-* **Record Structure:** The 88-byte waypoint record blocks.
-* **Data Types:** IEEE 754 Double Precision Float handling.
-
-### Flight Plans (`.rte`)
-* **File Architecture:** Fixed 4,776-byte binary structure.
-* **Leg-Based Logic:** Implementation of the "Phantom Record" architecture, where the ID for Waypoint *N* is stored in Record *N+1*.
-* **Integrity:** Validated CRC-32 checksums calculated at offset 4768 (File Size - 8) to ensure hardware acceptance without file deletion errors.
-
 ## Features
 ### Mission Planning & Editing
 * **Visual Route Editor:** Drag-and-drop functionality allows you to re-sequence waypoints visually. No more spreadsheet row cutting-and-pasting.
