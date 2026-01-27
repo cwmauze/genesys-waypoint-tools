@@ -66,15 +66,45 @@
 
         .map-toggle-panel { position: absolute; top: 12px; right: 10px; z-index: 4001; background: var(--card); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border); font-size: 11px; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); color: var(--text); }
         .numbered-marker { background: var(--primary); border: 2px solid white; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 20px; font-size: 10px; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 5999; }
+        #versionHistory { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); border: 2px solid var(--primary); padding: 25px; border-radius: 12px; font-size: 12px; z-index: 6000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text); line-height: 1.6; }
     </style>
 </head>
 <body onload="startClock(); initStickyObserver(); initAviationDB();">
+
+<div class="modal-overlay" id="historyOverlay" onclick="toggleVersionHistory()">
+    <div id="versionHistory" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <strong style="color:var(--primary); font-size:14px;">Version History</strong>
+            <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
+        </div>
+        v8.2.0.5 - Fixed "Show route" toggle on Map Preview; decoupled toggle logic.<br>
+        v8.2.0.4 - Centered Version History modal with backdrop dismissal.<br>
+        v8.2.0.3 - Integrated clickable Version History; Persistent UI baseline.<br>
+        v8.2.0.2 - Fixed K/P Prefix Priority & 3-letter NAVAID logic.<br>
+        v8.2.0.1 - Fixed dynamic row search binding bug.<br>
+        v8.2.0.0 - Added map layer collision fix & .RTE route toggle defaults.<br>
+        v8.1.1.9 - Fixed Longitude "Double Negative" Hemisphere Lock.<br>
+        v8.1.1.8 - Integrated IndexedDB Lazy Sync for FAA master data.<br>
+        v8.1.1.7 - Added ForeFlight & Google Earth deep-linking.<br>
+        v8.1.1.6 - Binary decoder optimization for 88-byte .dat records.<br>
+        v8.1.1.5 - Added Magenta polyline route visualization.<br>
+        v8.1.1.4 - Implemented drag-and-drop row reordering.<br>
+        v8.1.1.3 - Added Garmin user.wpt export compatibility.<br>
+        v8.1.1.2 - Fixed sticky header offset resizing bug.<br>
+        v8.1.1.1 - Added dark mode/light mode theme toggle.<br>
+        v8.1.1.0 - Initial KML/XML ingestion engine.<br>
+        v8.1.0.9 - Added CSV bulk paste normalization.<br>
+        v8.1.0.8 - Improved coordinate parser for DDM/DMS formats.
+    </div>
+</div>
 
 <div class="container">
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle">v8.2.0</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.2.0.5 Beta</span>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
@@ -146,7 +176,7 @@
 
     <div id="mapOverlay">
         <div class="map-toggle-panel">
-            <input type="checkbox" id="routeToggle" onchange="showMap()" style="width:auto; margin:0;">
+            <input type="checkbox" id="routeToggle" onchange="toggleRouteLayer()" style="width:auto; margin:0;">
             <label for="routeToggle" style="white-space:nowrap; cursor:pointer;">Show route</label>
         </div>
         <div id="map"></div>
@@ -289,6 +319,7 @@ function createRowCells(r, wp) {
     const lC = r.insertCell(8); lC.className = 'quick-links'; updateQuickLinks(r);
 }
 
+// --- SEARCH ENGINE ---
 function setupIdLookup(input) {
     let timer;
     input.addEventListener('input', () => {
@@ -296,25 +327,42 @@ function setupIdLookup(input) {
         inps.forEach((inp, idx) => { if(idx > 0 && idx < 5) inp.style.backgroundColor = ""; });
         timer = setTimeout(async () => {
             let id = input.value.trim().toUpperCase();
-            if (id === "") { inps[1].value = inps[2].value = inps[3].value = ""; inps[4].value = "0"; updateQuickLinks(row); return; }
-            if (id.length < 3 || !dbReady) return;
+            if (id === "" || id.length < 3 || !dbReady) return;
             const req = indexedDB.open(FAA_DB_NAME, 1);
             req.onsuccess = (e) => {
                 const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readonly");
-                const store = tx.objectStore(FAA_STORE_NAME); const get = store.get(id);
-                get.onsuccess = () => {
-                    const res = get.result;
-                    if (res) {
-                        let fixedLat = Math.abs(parseFloat(res.lat)), fixedLon = -Math.abs(parseFloat(res.lon));
-                        inps[1].value = res.name; inps[2].value = fixedLat.toFixed(6); inps[3].value = fixedLon.toFixed(6);
-                        inps[4].value = (res.type === 'APT') ? Math.round(parseFloat(res.elev) || 0) : 0;
-                        inps.forEach((inp, idx) => { if(idx > 0 && idx < 5) inp.style.backgroundColor = "rgba(71, 141, 245, 0.1)"; });
-                        updateQuickLinks(row);
-                    }
-                };
+                const store = tx.objectStore(FAA_STORE_NAME);
+
+                if ((id.startsWith('K') || id.startsWith('P')) && id.length === 4) {
+                    let strippedId = id.substring(1);
+                    let getStripped = store.get(strippedId);
+                    getStripped.onsuccess = () => {
+                        let res = getStripped.result;
+                        if (res && res.type === 'APT') {
+                            applyDataToRow(res, inps, row);
+                        } else {
+                            let getExact = store.get(id);
+                            getExact.onsuccess = () => { if (getExact.result) applyDataToRow(getExact.result, inps, row); };
+                        }
+                    };
+                } else {
+                    let getRequest = store.get(id);
+                    getRequest.onsuccess = () => {
+                        let res = getRequest.result;
+                        if (res) applyDataToRow(res, inps, row);
+                    };
+                }
             };
         }, 400);
     });
+}
+
+function applyDataToRow(res, inps, row) {
+    let fixedLat = Math.abs(parseFloat(res.lat)), fixedLon = -Math.abs(parseFloat(res.lon));
+    inps[1].value = res.name; inps[2].value = fixedLat.toFixed(6); inps[3].value = fixedLon.toFixed(6);
+    inps[4].value = (res.type === 'APT') ? Math.round(parseFloat(res.elev) || 0) : 0;
+    inps.forEach((inp, idx) => { if(idx > 0 && idx < 5) inp.style.backgroundColor = "rgba(71, 141, 245, 0.1)"; });
+    updateQuickLinks(row);
 }
 
 function updateQuickLinks(r) {
@@ -332,51 +380,83 @@ function parseCoordinate(i) {
     return (Math.abs(d) * m).toFixed(6);
 }
 
-// --- MAP ENGINE (UPDATED v8.2.0) ---
+// --- MAP ENGINE ---
 function showMap() {
     document.getElementById('mapOverlay').style.display = 'block';
-    
-    // Set default toggle state based on file source
     const routeToggle = document.getElementById('routeToggle');
     if (lastLoadedExtension === 'rte') {
         routeToggle.checked = true;
     } else if (lastLoadedExtension !== '') {
         routeToggle.checked = false;
     }
-
-    const isRouteEnabled = routeToggle.checked;
+    
     if (!leafletMap) {
         leafletMap = L.map('map').setView([39.8, -98.5], 4);
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: 'OSM'}), 
               sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution: 'Esri'}), 
               sec = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {attribution: 'FAA'});
         osm.addTo(leafletMap); 
-        // Relocated Layer Control to 'bottomright' to avoid collision with Route Toggle
         L.control.layers({ "Street": osm, "Satellite": sat, "Sectional": sec }, null, { position: 'bottomright' }).addTo(leafletMap);
+        markerLayer = L.layerGroup().addTo(leafletMap);
+        routeLayer = L.polyline([], {color: 'magenta', weight: 3}).addTo(leafletMap);
     }
-    if (markerLayer) leafletMap.removeLayer(markerLayer);
-    if (routeLayer) leafletMap.removeLayer(routeLayer);
-    markerLayer = L.layerGroup().addTo(leafletMap);
-    routeLayer = L.polyline([], {color: 'magenta', weight: 3}).addTo(leafletMap);
-    let b = [], coords = [];
-    tbody.querySelectorAll('tr').forEach((r, idx) => {
+    
+    toggleRouteLayer(true); // Initial draw with centering
+    setTimeout(() => leafletMap.invalidateSize(), 200);
+}
+
+function toggleRouteLayer(isInitial = false) {
+    if (!leafletMap || !routeLayer || !markerLayer) return;
+
+    const isRouteEnabled = document.getElementById('routeToggle').checked;
+    const coords = [];
+    const rows = tbody.querySelectorAll('tr');
+    let bounds = [];
+
+    // Reset current visuals
+    markerLayer.clearLayers();
+    routeLayer.setLatLngs([]);
+
+    rows.forEach((r, idx) => {
         const inps = r.querySelectorAll('input');
         if (inps.length >= 4) {
-            const lat = parseFloat(parseCoordinate(inps[2].value)), lon = parseFloat(parseCoordinate(inps[3].value));
-            if(!isNaN(lat) && lat !== 0) {
-                const pos = [lat, lon]; b.push(pos); coords.push(pos);
+            const lat = parseFloat(parseCoordinate(inps[2].value));
+            const lon = parseFloat(parseCoordinate(inps[3].value));
+            if (!isNaN(lat) && lat !== 0) {
+                const pos = [lat, lon];
+                coords.push(pos);
+                bounds.push(pos);
+                
                 const markerOpts = {};
-                if (isRouteEnabled) markerOpts.icon = L.divIcon({ className: 'numbered-marker', html: (idx+1), iconSize:[20,20]});
+                if (isRouteEnabled) {
+                    markerOpts.icon = L.divIcon({ 
+                        className: 'numbered-marker', 
+                        html: (idx + 1), 
+                        iconSize: [20, 20] 
+                    });
+                }
                 L.marker(pos, markerOpts).addTo(markerLayer).bindPopup(`<b>${inps[0].value || 'WP'}</b>`);
             }
         }
     });
-    if (isRouteEnabled && coords.length > 1) routeLayer.setLatLngs(coords);
-    if(b.length) leafletMap.fitBounds(b, {padding:[20,20]});
-    setTimeout(() => leafletMap.invalidateSize(), 200);
+
+    if (isRouteEnabled && coords.length > 1) {
+        routeLayer.setLatLngs(coords);
+    }
+    
+    if (isInitial && bounds.length > 0) {
+        leafletMap.fitBounds(bounds, {padding: [20, 20]});
+    }
 }
 
-// --- UTILS ---
+// --- UI UTILS ---
+function toggleVersionHistory() {
+    const overlay = document.getElementById('historyOverlay');
+    const box = document.getElementById('versionHistory');
+    const isShowing = overlay.style.display === 'block';
+    overlay.style.display = isShowing ? 'none' : 'block';
+    box.style.display = isShowing ? 'none' : 'block';
+}
 function startClock() { setInterval(() => { document.getElementById('local-clock').innerText = new Date().toLocaleTimeString('en-GB', { hour12: false }); }, 1000); }
 function updateRowNumbers() { tbody.querySelectorAll('tr').forEach((r, i) => { if(r.cells[1]) r.cells[1].innerText = i + 1; }); }
 function updateColumnVisibility() { document.getElementById('actionBar').style.display = tbody.rows.length > 0 ? 'flex' : 'none'; }
