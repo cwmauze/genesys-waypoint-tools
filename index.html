@@ -47,6 +47,8 @@
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; border: 1px solid var(--border); }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: middle; }
         thead th { background-color: var(--secondary) !important; font-weight: 600; font-size: 11px; user-select: none; line-height: 1.2; position: sticky; z-index: 1001; padding-top: 6px; padding-bottom: 6px; border-right: 1px solid var(--header-sep); }
+        .clickable-header { cursor: pointer; text-decoration: underline dotted; }
+        .clickable-header:hover { background-color: var(--primary) !important; color: white; }
 
         input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; background: var(--card); color: var(--text); box-sizing: border-box; }
         .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: all 0.2s ease; text-align: center; color: white; display: inline-block; vertical-align: middle; }
@@ -69,6 +71,11 @@
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 5999; }
         #versionHistory { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); border: 2px solid var(--primary); padding: 25px; border-radius: 12px; font-size: 12px; z-index: 6000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text); line-height: 1.6; }
+
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+        .file-upload-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .btn-upload { background: var(--secondary); color: var(--text); border: 1px solid var(--border); width: 100%; display: block; margin: 0; }
+        .btn-upload:hover { background: var(--primary); color: white; }
     </style>
 </head>
 <body onload="startClock(); initStickyObserver(); initAviationDB();">
@@ -79,15 +86,14 @@
             <strong style="color:var(--primary); font-size:14px;">Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        v8.2.1.6 - Re-instated DD/DDM/DMS rotation logic via column header clicks.<br>
+        v8.2.1.5 - Replaced default file browser with seamless, theme-aware upload button.<br>
         v8.2.1.4 - Integrated Smart Spreadsheet Paste (Row, Column, and Grid detection).<br>
         v8.2.1.3 - Fixed Super-Parser logic to correctly import waypoint names from CSVs.<br>
         v8.2.1.2 - Reintegrated technical reference links to instructions block.<br>
         v8.2.1.1 - Normalized Identifier to ALL CAPS; Supressed "Fix" labels in Name column.<br>
         v8.2.1.0 - Disabled OS autocorrect/autocapitalize on all entry fields.<br>
         v8.2.0.9 - Displayed waypoint identifier tooltips when "Show route" is enabled.<br>
-        v8.2.0.8 - Restored automatic "Show route" toggle for .RTE files.<br>
-        v8.2.0.7 - Fixed Clear All logic to reset bulk paste and file inputs.<br>
-        v8.2.0.6 - Integrated Heuristic Super-Parser for dirty spreadsheet data.<br>
     </div>
 </div>
 
@@ -95,7 +101,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.2.1.4 Beta</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.2.1.6 Beta</span>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
@@ -134,7 +140,13 @@
     </div>
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-        <div style="flex: 1;"><label style="font-size: 13px; font-weight: 600;">Option A: Load file</label><input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt,.xml,.rte" onchange="processFile()"></div>
+        <div style="flex: 1;">
+            <label style="font-size: 13px; font-weight: 600;">Option A: Load file</label>
+            <div class="file-upload-wrapper">
+                <button class="btn btn-upload" id="fileBtn">Choose File <span>.DAT .CSV .KML .RTE</span></button>
+                <input type="file" id="fileInput" accept=".dat,.csv,.txt,.kml,.wpt,.xml,.rte" onchange="updateFileNameDisplay(); processFile();">
+            </div>
+        </div>
         <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk paste (use with caution):</label><textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..." oninput="debouncePaste()" autocorrect="off" spellcheck="false" autocapitalize="none" autocomplete="off"></textarea></div>
     </div>
 
@@ -156,8 +168,8 @@
                 <th style="width: 3%; text-align: center;">#</th>
                 <th style="width: 10%;">Identifier</th>
                 <th style="width: 14%;">Name</th>
-                <th style="width: 12%;">Latitude</th>
-                <th style="width: 12%;">Longitude</th>
+                <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="latHeader">Latitude (DD)</th>
+                <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="lonHeader">Longitude (DD)</th>
                 <th style="width: 10%;">Elevation</th>
                 <th style="width: 12%;">Approach</th>
                 <th style="width: 24%;">View waypoint in</th>
@@ -189,7 +201,7 @@ const FAA_DATA_URL = "https://raw.githubusercontent.com/cwmauze/genesys-waypoint
 const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016; 
 const RTE = { FILE_SIZE: 4776, HEADER_SIZE: 56, REC_SIZE: 72, NAME_START: 3032, NAME_SIZE: 31, CRC_OFFSET: 4768 };
 let leafletMap = null, markerLayer = null, routeLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
-let lastLoadedExtension = '';
+let lastLoadedExtension = '', coordDisplayMode = 0; // 0: DD, 1: DDM, 2: DMS
 const FAA_DB_NAME = "FAANavData", FAA_STORE_NAME = "waypoints", tbody = document.getElementById('table-body');
 
 // --- DATABASE ENGINE ---
@@ -222,7 +234,45 @@ function updateDBStatus(state, text) {
     document.getElementById('dbText').innerText = text;
 }
 
+// --- v8.2.1.6 Coordinate Rotator Logic ---
+function rotateCoordFormat() {
+    coordDisplayMode = (coordDisplayMode + 1) % 3;
+    const labels = ["(DD)", "(DDM)", "(DMS)"];
+    document.getElementById('latHeader').innerText = "Latitude " + labels[coordDisplayMode];
+    document.getElementById('lonHeader').innerText = "Longitude " + labels[coordDisplayMode];
+    
+    tbody.querySelectorAll('tr').forEach(r => {
+        const inps = r.querySelectorAll('input');
+        if (inps.length >= 4) {
+            let lat = parseCoordinate(inps[2].dataset.raw || inps[2].value);
+            let lon = parseCoordinate(inps[3].dataset.raw || inps[3].value);
+            inps[2].dataset.raw = lat; inps[3].dataset.raw = lon;
+            inps[2].value = formatCoord(lat, true);
+            inps[3].value = formatCoord(lon, false);
+        }
+    });
+}
+
+function formatCoord(val, isLat) {
+    let d = parseFloat(val); if (isNaN(d)) return "";
+    if (coordDisplayMode === 0) return d.toFixed(6);
+    let absD = Math.abs(d);
+    let deg = Math.floor(absD);
+    let minFull = (absD - deg) * 60;
+    let hemi = isLat ? (d >= 0 ? 'N' : 'S') : (d >= 0 ? 'E' : 'W');
+    if (coordDisplayMode === 1) return `${deg}° ${minFull.toFixed(3)}' ${hemi}`;
+    let min = Math.floor(minFull);
+    let sec = (minFull - min) * 60;
+    return `${deg}° ${min}' ${sec.toFixed(1)}" ${hemi}`;
+}
+
 // --- FILE PROCESSING ---
+function updateFileNameDisplay() {
+    const f = document.getElementById('fileInput');
+    const b = document.getElementById('fileBtn');
+    if (f.files.length > 0) { b.innerHTML = `Loaded: ${f.files[0].name} <span>CHANGE FILE</span>`; }
+}
+
 function processFile() {
     const f = document.getElementById('fileInput');
     if (f.files.length > 0) {
@@ -342,7 +392,6 @@ function smartParse(text) {
         });
     }
     populateTable(wps);
-    logAction("Parsed " + wps.length + " waypoints from data.");
 }
 
 function populateTable(wps) {
@@ -351,37 +400,29 @@ function populateTable(wps) {
     updateRowNumbers(); updateColumnVisibility();
 }
 
-// --- v8.2.1.4 Smart Spreadsheet Paste Handler ---
 function handleTablePaste(targetInput, e) {
     const pasteData = (e.clipboardData || window.clipboardData).getData('text');
-    if (!pasteData.includes('\n') && !pasteData.includes('\t')) return; // Single cell, let default behavior handle
-    
+    if (!pasteData.includes('\n') && !pasteData.includes('\t')) return; 
     e.preventDefault();
     const rows = pasteData.split(/\r?\n/).filter(line => line.length > 0);
     const currentRow = targetInput.closest('tr');
     const currentColIdx = Array.from(currentRow.querySelectorAll('input')).indexOf(targetInput);
     let targetRow = currentRow;
-
     rows.forEach((rowContent, rIdx) => {
-        if (!targetRow) {
-            addRows(1);
-            targetRow = tbody.lastElementChild;
-        }
+        if (!targetRow) { addRows(1); targetRow = tbody.lastElementChild; }
         const cells = rowContent.split('\t');
         const rowInputs = targetRow.querySelectorAll('input');
-        
         cells.forEach((cellVal, cIdx) => {
             const inputIdx = currentColIdx + cIdx;
             if (rowInputs[inputIdx]) {
                 let cleanVal = cellVal.trim();
                 if (inputIdx === 0) cleanVal = cleanVal.substring(0, 5).toUpperCase();
                 rowInputs[inputIdx].value = cleanVal;
-                rowInputs[inputIdx].dispatchEvent(new Event('input')); // Trigger lookups/links
+                rowInputs[inputIdx].dispatchEvent(new Event('input')); 
             }
         });
         targetRow = targetRow.nextElementSibling;
     });
-    logAction(`Smart Pasted ${rows.length} records`);
 }
 
 function createRowCells(r, wp) {
@@ -401,9 +442,15 @@ function createRowCells(r, wp) {
     r.insertCell(0).className = 'drag-handle'; r.cells[0].innerText = '⠿';
     r.insertCell(1).className = 'row-number';
     [wp.id, wp.name, wp.lat, wp.lon, wp.elev || '0', wp.brg || '0'].forEach((v, i) => {
-        const cell = r.insertCell(i+2); const input = document.createElement('input'); input.value = v || '';
+        const cell = r.insertCell(i+2); const input = document.createElement('input'); 
+        
         input.setAttribute('autocorrect', 'off'); input.setAttribute('spellcheck', 'false');
         input.setAttribute('autocapitalize', 'none'); input.setAttribute('autocomplete', 'off');
+
+        if (i === 2 || i === 3) {
+            input.dataset.raw = v;
+            input.value = formatCoord(v, i === 2);
+        } else { input.value = v || ''; }
 
         input.addEventListener('paste', (e) => handleTablePaste(input, e));
 
@@ -412,7 +459,8 @@ function createRowCells(r, wp) {
             input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
             setupIdLookup(input);
         }
-        input.oninput = () => updateQuickLinks(r); 
+        
+        input.oninput = () => { if(i === 2 || i === 3) input.dataset.raw = parseCoordinate(input.value); updateQuickLinks(r); }; 
         cell.appendChild(input);
     });
     const lC = r.insertCell(8); lC.className = 'quick-links'; updateQuickLinks(r);
@@ -449,7 +497,8 @@ function setupIdLookup(input) {
 function applyDataToRow(res, inps, row) {
     let fixedLat = Math.abs(parseFloat(res.lat)), fixedLon = -Math.abs(parseFloat(res.lon));
     inps[1].value = (res.type === 'FIX' || res.type === 'INT') ? "" : res.name; 
-    inps[2].value = fixedLat.toFixed(6); inps[3].value = fixedLon.toFixed(6);
+    inps[2].dataset.raw = fixedLat; inps[3].dataset.raw = fixedLon;
+    inps[2].value = formatCoord(fixedLat, true); inps[3].value = formatCoord(fixedLon, false);
     inps[4].value = (res.type === 'APT') ? Math.round(parseFloat(res.elev) || 0) : 0;
     inps.forEach((inp, idx) => { if(idx > 0 && idx < 5) inp.style.backgroundColor = "rgba(71, 141, 245, 0.1)"; });
     updateQuickLinks(row);
@@ -457,7 +506,8 @@ function applyDataToRow(res, inps, row) {
 
 function updateQuickLinks(r) {
     const i = r.querySelectorAll('input'); if(i.length < 4) return;
-    const lat = parseCoordinate(i[2].value), lon = parseCoordinate(i[3].value), c = r.querySelector('.quick-links');
+    const lat = parseCoordinate(i[2].dataset.raw || i[2].value), lon = parseCoordinate(i[3].dataset.raw || i[3].value);
+    const c = r.querySelector('.quick-links');
     if (!isNaN(lat) && lat !== 0) {
         c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight</a> <span class="separator">|</span> <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a> <span class="separator">|</span> <a href="http://maps.google.com/maps?q=${lat},${lon}" target="_blank">Google Maps</a>`;
     } else { c.innerHTML = ""; }
@@ -493,7 +543,7 @@ function toggleRouteLayer(isInitial = false) {
     tbody.querySelectorAll('tr').forEach((r, idx) => {
         const inps = r.querySelectorAll('input');
         if (inps.length >= 4) {
-            const lat = parseFloat(parseCoordinate(inps[2].value)), lon = parseFloat(parseCoordinate(inps[3].value));
+            const lat = parseFloat(parseCoordinate(inps[2].dataset.raw || inps[2].value)), lon = parseFloat(parseCoordinate(inps[3].dataset.raw || inps[3].value));
             if (!isNaN(lat) && lat !== 0) {
                 const pos = [lat, lon]; coords.push(pos); bounds.push(pos);
                 const markerOpts = isRouteEnabled ? {icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})} : {};
@@ -520,7 +570,8 @@ function removeAll() {
     if (confirm("Clear all data? This will reset the table and all input fields.")) {
         tbody.innerHTML = '';
         const bulk = document.getElementById('bulkInput'); if (bulk) bulk.value = '';
-        const fileInp = document.getElementById('fileInput'); if (fileInp) fileInp.value = '';
+        const fInp = document.getElementById('fileInput'); if (fInp) fInp.value = '';
+        const fBtn = document.getElementById('fileBtn'); if (fBtn) fBtn.innerHTML = `Choose File <span>.DAT .CSV .KML .RTE</span>`;
         lastLoadedExtension = ''; updateColumnVisibility(); logAction("System Reset");
     }
 }
@@ -539,7 +590,7 @@ function validateAndExportGenesys() {
     let bytes = []; let hBuf = new ArrayBuffer(HEADER_SIZE), hView = new DataView(hBuf); hView.setUint32(0, rows.length, true);
     for(let k=0; k<HEADER_SIZE; k++) bytes.push(k<4 ? hView.getUint8(k) : parseInt(headerHex.substr(k*2,2), 16));
     rows.forEach(r => {
-        const inp = r.querySelectorAll('input'); const lat = parseCoordinate(inp[2].value), lon = parseCoordinate(inp[3].value);
+        const inp = r.querySelectorAll('input'); const lat = parseCoordinate(inp[2].dataset.raw || inp[2].value), lon = parseCoordinate(inp[3].dataset.raw || inp[3].value);
         let buf = new ArrayBuffer(RECORD_SIZE), v = new DataView(buf);
         for(let j=0; j<9; j++) v.setUint8(24+j, (j<inp[0].value.length)?inp[0].value.charCodeAt(j):0);
         for(let j=0; j<23; j++) v.setUint8(33+j, (j<inp[1].value.length)?inp[1].value.charCodeAt(j):0);
@@ -558,13 +609,13 @@ function exportToRTE() {
     let buf = new ArrayBuffer(RTE.FILE_SIZE), v = new DataView(buf); v.setUint32(0, rows.length, true);
     rows.forEach((r, i) => {
         const inp = r.querySelectorAll('input'); let cOff = RTE.HEADER_SIZE + (i * RTE.REC_SIZE);
-        v.setFloat64(cOff + 24, parseFloat(parseCoordinate(inp[2].value)), true); v.setFloat64(cOff + 32, parseFloat(parseCoordinate(inp[3].value)), true);
+        v.setFloat64(cOff + 24, parseFloat(parseCoordinate(inp[2].dataset.raw || inp[2].value)), true); v.setFloat64(cOff + 32, parseFloat(parseCoordinate(inp[3].dataset.raw || inp[3].value)), true);
     });
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([buf])); a.download = "plan.rte"; a.click();
 }
 function validateAndExportGarmin() {
     let csv = ""; tbody.querySelectorAll('tr').forEach(r => {
-        const inp = r.querySelectorAll('input'); csv += `${inp[0].value},${inp[1].value},${parseCoordinate(inp[2].value)},${parseCoordinate(inp[3].value)}\n`;
+        const inp = r.querySelectorAll('input'); csv += `${inp[0].value},${inp[1].value},${parseCoordinate(inp[2].dataset.raw || inp[2].value)},${parseCoordinate(inp[3].dataset.raw || inp[3].value)}\n`;
     });
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "user.wpt"; a.click();
 }
