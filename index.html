@@ -38,10 +38,12 @@
         
         .top-info-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
         .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); font-size: 14px; line-height: 1.5; height: 100%; box-sizing: border-box; }
+        
+        /* UPDATED SESSION CARD STYLE */
         .session-status-card { background: var(--secondary); padding: 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; height: 100%; box-sizing: border-box; }
         
         .status-line { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; display: inline-block; margin-left: 5px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; display: inline-block; flex-shrink: 0; }
         .status-dot.loading { background: var(--dispatch); animation: dbPulse 1s infinite; }
         .status-dot.ready { background: var(--success); }
         .status-dot.error { background: var(--danger); }
@@ -118,6 +120,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.1</b> - UI UPDATE: Added real-time binary size estimation and waypoint composition stats. Improved status alignment.<br>
         <b>v8.4</b> - STABLE RELEASE: Integrated forensic binary engine for .RTE flight plans (11,752 byte container).<br>
         <b>v8.3.1.8</b> - FIXED: Rewrote .RTE Exporter with "Golden Master" logic (Flags, Leg Shifts, and CRC-32).<br>
         <b>v8.3.1.7</b> - LOGIC PATCH: Smart disambiguation for duplicate IDs. 3-letter inputs prioritize NAVAIDs; 4-letter (K/P) prioritize Airports.<br>
@@ -125,9 +128,6 @@
         <b>v8.3.1.5</b> - CRITICAL FIX: Forced schema upgrade to v2 to enable search indexing.<br>
         <b>v8.3.1.4</b> - DB Architecture Upgrade (v2): Enabled duplicate identifiers (Airport/NAVAID separation) and smart prioritization.<br>
         <b>v8.3.1.3</b> - UI Logic Fix: Identifier field now preserves user input (e.g., K-prefixes) and re-search forces row update on edit.<br>
-        <b>v8.3.1.2</b> - Added "Fallback Search" logic: stripping K/P prefixes to find Airports if standard ID search fails.<br>
-        <b>v8.3.1.1</b> - Fixed search result population logic for reliable data insertion.<br>
-        <b>v8.3.1</b> - Visual hierarchy update: Added subtle zebra striping to table rows.<br>
         <b>v8.3</b> - STABLE RELEASE: Transitioned out of beta. Locked functional baseline.<br>
     </div>
 </div>
@@ -136,7 +136,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4 Stable</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.1 Stable</span>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
@@ -167,10 +167,46 @@
                 <span>Session status</span>
                 <span id="local-clock">00:00:00</span>
             </div>
-            <div class="status-line"><span>Last action:</span> <span id="last-action">Ready</span></div>
-            <div class="status-line"><span>Current total:</span> <span id="wp-count-display">0</span></div>
-            <div class="status-line"><span>System status:</span> <div><div class="status-dot ready" id="sysDot"></div> <span id="sys-status">Ready</span></div></div>
-            <div class="status-line"><span>FAA DB Sync:</span> <div onclick="resetDatabase()" style="cursor: pointer;" title="Click to Force Reset Database"><span id="dbText" style="opacity: 0.7; text-decoration: underline dotted;">Checking...</span><div class="status-dot" id="dbDot"></div></div></div>
+            
+            <div class="status-line">
+                <span>Last action:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="last-action">Ready</span>
+                    <div style="width:8px;"></div> </div>
+            </div>
+
+            <div class="status-line">
+                <span>Composition:</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="wp-composition">0 Total</span>
+                    <div style="width:8px;"></div>
+                </div>
+            </div>
+
+            <div class="status-line">
+                <span>Est. .DAT Size:</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="est-size">0 KB</span>
+                    <div class="status-dot ready" id="sizeDot"></div>
+                </div>
+            </div>
+
+            <div class="status-line">
+                <span>System status:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="sys-status">Ready</span>
+                    <div class="status-dot ready" id="sysDot"></div>
+                </div>
+            </div>
+
+            <div class="status-line">
+                <span>FAA DB Sync:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span onclick="checkVersionAndSync()" style="cursor:pointer; font-size:14px; line-height:1; color:var(--link);" title="Check for Updates">↻</span>
+                    <span id="dbText" onclick="resetDatabase()" style="cursor:pointer; opacity:0.8; font-size:10px; border-bottom:1px dotted #888;" title="Force Full Reset">Checking...</span>
+                    <div class="status-dot" id="dbDot"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -248,8 +284,8 @@ let lastLoadedExtension = '', coordDisplayMode = 0;
 const FAA_DB_NAME = "FAANavData", FAA_STORE_NAME = "waypoints", tbody = document.getElementById('table-body');
 
 /* ------------------------------------------------------------------------------------------------
-   NEW ENGINE START: GENESYS IDU .RTE FILE ENGINE (v8.4 STABLE)
-   Replaces previous 'decodeRTE' and 'exportToRTE' logic with forensic binary structure.
+   GENESYS IDU .RTE FILE ENGINE (v8.4 STABLE)
+   Forensic binary structure for S-TEC/Genesys Avionics
 ------------------------------------------------------------------------------------------------ */
 const RTE_CONSTANTS = {
     FILE_SIZE: 11752,
@@ -366,9 +402,6 @@ const GenesysRTE = {
         return (crc ^ 0xFFFFFFFF) >>> 0;
     }
 };
-/* ------------------------------------------------------------------------------------------------
-   NEW ENGINE END
------------------------------------------------------------------------------------------------- */
 
 /* --- FUNCTION: FAA DATABASE ENGINE (v2.1) --- */
 async function initAviationDB() { await verifyDatabaseIntegrity(); }
@@ -427,6 +460,33 @@ function updateDBStatus(state, text) {
     document.getElementById('dbText').innerText = text;
 }
 
+function updateSessionStats() {
+    const rows = tbody.querySelectorAll('tr');
+    const count = rows.length;
+    
+    // Logic A: Composition (Heuristic: Elevation > 0 implies Airport/User Point)
+    let aptCount = 0;
+    rows.forEach(r => {
+        const elev = r.querySelectorAll('input')[4].value;
+        if (elev && elev !== '0' && elev !== '') aptCount++;
+    });
+    document.getElementById('wp-composition').innerText = `${count} (${aptCount} APT, ${count - aptCount} WPT)`;
+
+    // Logic B: Estimated .DAT Size (Header + Rows + Footer)
+    // Formula: 72 (Header) + (Rows * 88) + 8 (CRC/Pad)
+    const bytes = 72 + (count * 88) + 8; 
+    const kb = (bytes / 1024).toFixed(1);
+    const sizeElem = document.getElementById('est-size');
+    const sizeDot = document.getElementById('sizeDot');
+    
+    sizeElem.innerText = `${kb} KB / 88 KB`;
+    
+    // Status Logic: Green < 80KB, Yellow > 80KB, Red > 88KB (Limit)
+    if (bytes < 81920) { sizeDot.className = "status-dot ready"; }
+    else if (bytes < 88016) { sizeDot.className = "status-dot loading"; }
+    else { sizeDot.className = "status-dot error"; }
+}
+
 function saveSession() {
     const data = [];
     tbody.querySelectorAll('tr').forEach(r => {
@@ -435,7 +495,9 @@ function saveSession() {
             data.push({ id: inps[0].value, name: inps[1].value, lat: inps[2].dataset.raw || inps[2].value, lon: inps[3].dataset.raw || inps[3].value, elev: inps[4].value, app: inps[5].value });
         }
     });
-    localStorage.setItem('genesys_session', JSON.stringify(data)); checkGlobalHealth();
+    localStorage.setItem('genesys_session', JSON.stringify(data)); 
+    checkGlobalHealth();
+    updateSessionStats();
 }
 
 function loadSession() {
@@ -532,7 +594,6 @@ function decodeBinary(buf) {
     populateTable(wps);
 }
 
-/* --- REPLACED: .RTE IMPORT HANDLER (Uses New Engine) --- */
 function decodeRTE(buf) {
     const wps = GenesysRTE.import(buf);
     // Map internal engine format to table format
@@ -864,6 +925,7 @@ function removeAll() {
         const fInp = document.getElementById('fileInput'); if (fInp) fInp.value = '';
         const fBtn = document.getElementById('fileBtn'); if (fBtn) fBtn.innerHTML = `Choose File <span>.FPL .DAT .CSV .KML .RTE</span>`;
         lastLoadedExtension = ''; updateColumnVisibility(); logAction("System Reset"); checkGlobalHealth();
+        updateSessionStats();
     }
 }
 
@@ -905,7 +967,6 @@ function validateAndExportGenesys() {
 }
 function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
 
-/* --- REPLACED: .RTE EXPORT HANDLER (Uses New Engine) --- */
 function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
