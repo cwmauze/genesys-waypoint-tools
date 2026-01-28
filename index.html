@@ -118,6 +118,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4</b> - STABLE RELEASE: Integrated forensic binary engine for .RTE flight plans (11,752 byte container).<br>
         <b>v8.3.1.8</b> - FIXED: Rewrote .RTE Exporter with "Golden Master" logic (Flags, Leg Shifts, and CRC-32).<br>
         <b>v8.3.1.7</b> - LOGIC PATCH: Smart disambiguation for duplicate IDs. 3-letter inputs prioritize NAVAIDs; 4-letter (K/P) prioritize Airports.<br>
         <b>v8.3.1.6</b> - SELF-HEALING: Added automated database corruption check and manual reset option.<br>
@@ -135,7 +136,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.3.1.8 Stable</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4 Stable</span>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
         </div>
@@ -242,10 +243,132 @@
 <script>
 /* --- APP RULES: Defines the rigid structures required for avionics binary files --- */
 const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016; 
-const RTE = { FILE_SIZE: 4776, HEADER_SIZE: 56, REC_SIZE: 72, NAME_START: 3032, NAME_SIZE: 31, CRC_OFFSET: 4768 };
 let leafletMap = null, markerLayer = null, routeLayer = null, labelLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
 let lastLoadedExtension = '', coordDisplayMode = 0; 
 const FAA_DB_NAME = "FAANavData", FAA_STORE_NAME = "waypoints", tbody = document.getElementById('table-body');
+
+/* ------------------------------------------------------------------------------------------------
+   NEW ENGINE START: GENESYS IDU .RTE FILE ENGINE (v8.4 STABLE)
+   Replaces previous 'decodeRTE' and 'exportToRTE' logic with forensic binary structure.
+------------------------------------------------------------------------------------------------ */
+const RTE_CONSTANTS = {
+    FILE_SIZE: 11752,
+    HEADER_SIZE: 56,
+    REC_SIZE: 72,
+    NAME_SIZE: 31,
+    NAME_BLOCK_START: 7412,
+    CRC_OFFSET: 11744,
+    TYPE_STANDARD: 0x40A00000 // Float 5.0
+};
+
+// --- CRC32 LOOKUP TABLE (IEEE 802.3) ---
+const CRC_TABLE = (function() {
+    let c, table = [];
+    for(let n = 0; n < 256; n++){
+        c = n;
+        for(let k = 0; k < 8; k++){
+            c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+        }
+        table[n] = c;
+    }
+    return table;
+})();
+
+const GenesysRTE = {
+    import: function(buffer) {
+        const view = new DataView(buffer);
+        const waypoints = [];
+        const count = view.getUint32(0, true);
+
+        for (let i = 0; i < count; i++) {
+            const currentRecOffset = RTE_CONSTANTS.HEADER_SIZE + (i * RTE_CONSTANTS.REC_SIZE);
+            const nextRecOffset = RTE_CONSTANTS.HEADER_SIZE + ((i + 1) * RTE_CONSTANTS.REC_SIZE);
+            const nameOffset = RTE_CONSTANTS.NAME_BLOCK_START + (i * RTE_CONSTANTS.NAME_SIZE);
+            const lat = view.getFloat64(currentRecOffset + 24, true);
+            const lon = view.getFloat64(currentRecOffset + 32, true);
+
+            // Read ID (Stored in the NEXT record's slot)
+            let id = this._readString(view, nextRecOffset + 8, 6);
+            if (!id) id = `WP${i + 1}`;
+            const desc = this._readString(view, nameOffset, RTE_CONSTANTS.NAME_SIZE);
+
+            waypoints.push({ id: id, lat: lat, lon: lon, desc: desc });
+        }
+        return waypoints;
+    },
+
+    export: function(waypoints) {
+        const buffer = new ArrayBuffer(RTE_CONSTANTS.FILE_SIZE);
+        const view = new DataView(buffer);
+        const byteView = new Uint8Array(buffer);
+
+        view.setUint32(0, waypoints.length, true);
+
+        for (let i = 0; i < waypoints.length; i++) {
+            const wp = waypoints[i];
+            const currentRecOffset = RTE_CONSTANTS.HEADER_SIZE + (i * RTE_CONSTANTS.REC_SIZE);
+            const nextRecOffset = RTE_CONSTANTS.HEADER_SIZE + ((i + 1) * RTE_CONSTANTS.REC_SIZE);
+            const nameOffset = RTE_CONSTANTS.NAME_BLOCK_START + (i * RTE_CONSTANTS.NAME_SIZE);
+
+            view.setFloat64(currentRecOffset + 24, Number(wp.lat), true);
+            view.setFloat64(currentRecOffset + 32, Number(wp.lon), true);
+            view.setUint32(currentRecOffset + 40, RTE_CONSTANTS.TYPE_STANDARD, true);
+
+            if (i < 101) { 
+                const idStr = wp.id ? wp.id : `WP${i+1}`;
+                this._writeString(view, nextRecOffset + 8, idStr, 6, true);
+                this._writeString(view, nextRecOffset + 14, "K7", 2, false); 
+            }
+            this._writeString(view, nameOffset, wp.desc || "", RTE_CONSTANTS.NAME_SIZE, true);
+        }
+
+        const payload = byteView.subarray(0, RTE_CONSTANTS.CRC_OFFSET);
+        const checksum = this._calculateCRC32(payload);
+        view.setUint32(RTE_CONSTANTS.CRC_OFFSET, checksum, true);
+
+        return new Blob([buffer], { type: "application/octet-stream" });
+    },
+
+    getFilename: function(waypoints) {
+        if (!waypoints || waypoints.length < 2) return "ROUTE0.RTE";
+        const formatID = (id) => {
+            const clean = id.trim().toUpperCase();
+            return (clean.length === 4 && clean[0] === 'K') ? clean.substring(1) : clean.substring(0, 3);
+        };
+        const start = formatID(waypoints[0].id);
+        const end = formatID(waypoints[waypoints.length - 1].id);
+        return `${start}-${end}0.RTE`;
+    },
+
+    _readString: function(view, offset, len) {
+        let s = "";
+        for (let i = 0; i < len; i++) {
+            let c = view.getUint8(offset + i);
+            if (c === 0) break;
+            if (c >= 32 && c <= 126) s += String.fromCharCode(c);
+        }
+        return s.trim();
+    },
+
+    _writeString: function(view, offset, str, maxLen, nullTerm) {
+        const s = (str || "").toString().toUpperCase().trim().substring(0, maxLen);
+        for (let i = 0; i < maxLen; i++) {
+            view.setUint8(offset + i, (i < s.length) ? s.charCodeAt(i) : 0x20);
+        }
+        if (nullTerm) view.setUint8(offset + maxLen - 1, 0x00);
+    },
+
+    _calculateCRC32: function(buffer) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < buffer.length; i++) {
+            crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ buffer[i]) & 0xFF];
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+};
+/* ------------------------------------------------------------------------------------------------
+   NEW ENGINE END
+------------------------------------------------------------------------------------------------ */
 
 /* --- FUNCTION: FAA DATABASE ENGINE (v2.1) --- */
 async function initAviationDB() { await verifyDatabaseIntegrity(); }
@@ -409,20 +532,17 @@ function decodeBinary(buf) {
     populateTable(wps);
 }
 
+/* --- REPLACED: .RTE IMPORT HANDLER (Uses New Engine) --- */
 function decodeRTE(buf) {
-    const view = new DataView(buf), bytes = new Uint8Array(buf), count = view.getUint32(0, true), wps = [];
-    for (let i = 0; i < count; i++) {
-        let cOff = RTE.HEADER_SIZE + (i * RTE.REC_SIZE);
-        let lat = view.getFloat64(cOff + 24, true), lon = view.getFloat64(cOff + 32, true);
-        let nOff = RTE.NAME_START + (i * RTE.NAME_SIZE), name = readRTEString(bytes, nOff, RTE.NAME_SIZE);
-        let idOff = RTE.HEADER_SIZE + ((i + 1) * RTE.REC_SIZE) + 8, id = readRTEString(bytes, idOff, 6);
-        wps.push({ id: id || "WP"+(i+1), name, lat: lat.toFixed(6), lon: lon.toFixed(6) });
-    }
-    populateTable(wps);
-}
-
-function readRTEString(bytes, offset, length) {
-    let str = ""; for (let i = 0; i < length; i++) { let c = bytes[offset + i]; if (c === 0) break; if (c >= 32 && c <= 126) str += String.fromCharCode(c); } return str.trim();
+    const wps = GenesysRTE.import(buf);
+    // Map internal engine format to table format
+    const tableData = wps.map(wp => ({
+        id: wp.id,
+        name: wp.desc,
+        lat: wp.lat.toFixed(6),
+        lon: wp.lon.toFixed(6)
+    }));
+    populateTable(tableData);
 }
 
 function parseKML(text) {
@@ -610,7 +730,7 @@ function setupIdLookup(input, isManual = false) {
                     else {
                         let bestMatch = null;
                         if (exactMatches.length > 0) {
-                            const navaid = exactMatches.find(m => m.type !== 'APT'); const airport = exactMatches.find(m => m.type === 'APT');
+                            const navaid = exactMatches.find(m => m.type !== 'FIX' && m.type !== 'INT'); const airport = exactMatches.find(m => m.type === 'APT');
                             bestMatch = navaid || airport || exactMatches[0];
                             applyDataToRow(bestMatch, inps, row, isManual);
                         } 
@@ -763,7 +883,7 @@ function initStickyObserver() {
 }
 
 /* ---------------------------------------------------------
-   EXPORT HANDLERS: v8.3.1.8 UPDATE (RTE FIX)
+   EXPORT HANDLERS: v8.4 UPDATE (RTE FIX)
    --------------------------------------------------------- */
 function validateAndExportGenesys() {
     const rows = [...tbody.querySelectorAll('tr')], headerHex = "9a01000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a00000000000004728a3b76555424027eadf08657853c0";
@@ -785,76 +905,25 @@ function validateAndExportGenesys() {
 }
 function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
 
-/* --- EXPORT TO RTE (REWRITTEN v8.3.1.8) --- */
+/* --- REPLACED: .RTE EXPORT HANDLER (Uses New Engine) --- */
 function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
 
-    const FILE_SIZE = 4776; const HEADER_SIZE = 56; const REC_SIZE = 72; const NAME_START = 3032; const NAME_SIZE = 31;
-    let buffer = new ArrayBuffer(FILE_SIZE); let view = new DataView(buffer); let bytes = new Uint8Array(buffer);
+    const wpData = rows.map(r => ({
+        id: r.querySelectorAll('input')[0].value,
+        desc: r.querySelectorAll('input')[1].value,
+        lat: parseCoordinate(r.querySelectorAll('input')[2].dataset.raw || r.querySelectorAll('input')[2].value),
+        lon: parseCoordinate(r.querySelectorAll('input')[3].dataset.raw || r.querySelectorAll('input')[3].value)
+    }));
 
-    // 1. Header Count
-    view.setUint32(0, rows.length, true);
-
-    const getID = (r) => r.querySelectorAll('input')[0].value.trim().toUpperCase();
-    const getName = (r) => r.querySelectorAll('input')[1].value.trim().toUpperCase();
-    const getLat = (r) => parseFloat(parseCoordinate(r.querySelectorAll('input')[2].dataset.raw || r.querySelectorAll('input')[2].value));
-    const getLon = (r) => parseFloat(parseCoordinate(r.querySelectorAll('input')[3].dataset.raw || r.querySelectorAll('input')[3].value));
-
-    // Helper: Write String
-    const writeStr = (offset, str, max, forceNull) => {
-        let w = 0;
-        for(let i=0; i<str.length && i<max; i++) { view.setUint8(offset+i, str.charCodeAt(i)); w++; }
-        while(w < max) { view.setUint8(offset+w, 0x20); w++; } // Space Pad
-        if(forceNull) view.setUint8(offset+max-1, 0x00);
-    };
-
-    rows.forEach((r, i) => {
-        let lat = getLat(r), lon = getLon(r);
-        let recOffset = HEADER_SIZE + (i * REC_SIZE);
-
-        // A. Flags (Origin only)
-        if (i === 0) { view.setUint8(recOffset, 0xB3); view.setUint8(recOffset+1, 0x01); }
-
-        // B. ID Logic (Write Current ID to NEXT Record)
-        let nextRecOffset = HEADER_SIZE + ((i + 1) * REC_SIZE);
-        if (i < rows.length) {
-            let myID = getID(r);
-            // Write ID to next record (Leg Logic)
-            writeStr(nextRecOffset + 8, myID, 6, true);
-            // Write Region to next record
-            writeStr(nextRecOffset + 14, "K7", 2, false);
-        }
-
-        // C. Coordinates (Current Record)
-        view.setFloat64(recOffset + 24, lat, true);
-        view.setFloat64(recOffset + 32, lon, true);
-        view.setFloat32(recOffset + 40, 4.0, true); // Fixed Altitude/Type
-        
-        // D. Region (Current Record)
-        writeStr(recOffset + 14, "K7", 2, false);
-
-        // E. Name Block
-        writeStr(NAME_START + (i * NAME_SIZE), getName(r), NAME_SIZE, true);
-    });
-
-    // 4. CRC Calculation
-    const table = makeCRCTable(); let crc = 0xFFFFFFFF;
-    for(let i=0; i<FILE_SIZE-4; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
-    crc = (crc ^ 0xFFFFFFFF) >>> 0;
-    view.setUint32(FILE_SIZE - 4, crc, true);
-
-    // 5. Generate Filename
-    let startID = getID(rows[0]).replace(/[^A-Z0-9]/g, ''); 
-    if(startID.length === 4 && startID.startsWith('K')) startID = startID.substring(1);
-    startID = startID.substring(0,3);
-
-    let endID = getID(rows[rows.length-1]).replace(/[^A-Z0-9]/g, '');
-    if(endID.length === 4 && endID.startsWith('K')) endID = endID.substring(1);
-    endID = endID.substring(0,3);
-
-    const fileName = `${startID}-${endID}0.RTE`;
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([buffer])); a.download = fileName; a.click();
+    const blob = GenesysRTE.export(wpData);
+    const fileName = GenesysRTE.getFilename(wpData);
+    
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    a.click();
 }
 
 async function validateAndExportFPL() {
