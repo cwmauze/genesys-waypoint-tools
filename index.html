@@ -109,6 +109,22 @@
         .autocomplete-item:hover { background: var(--primary) !important; color: white; }
 
         .leg-label { background: rgba(0, 0, 0, 0.75); border: 1px solid var(--primary); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; white-space: nowrap; }
+        .app-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: #90949c;
+            line-height: 1.6;
+            text-align: center;
+        }
+        .disclaimer-bold {
+            font-weight: bold;
+            color: var(--text);
+        }
+    </style>
+
+</div> <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     </style>
 </head>
 
@@ -138,14 +154,14 @@
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
             <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.2 Stable</span>
-            <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
+            <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
         <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn" style="font-size: 18px; padding: 6px 12px;">☀️</button>
     </div>
 
-    <div style="font-size: 13px; color: #90949c; margin-bottom: 25px; line-height: 1.5; max-width: 1000px; border-left: 2px solid var(--border); padding-left: 15px;">
-        This tool serves as a necessary interface for generating navigation database files, as Genesys Aerosystems does not provide a standalone utility for this process. It automates the extraction and validation of waypoint identifiers and coordinates from diverse sources into the specific binary structure required for Genesys and Garmin avionics uploads.
+    <div style="font-size: 13px; color: #90949c; margin-bottom: 25px; line-height: 1.5; max-width: 1400px; border-left: 2px solid var(--border); padding-left: 15px;">
+        This tool serves as an interface to bulk import / edit / export user waypoint and flight plan files to/from IDU-series avionics.  Other than manually hand-jamming one waypoint at a time directly into the IDU- or into their PC trainer software (which takes forever and invites the opportunity for fat-finger errors), Genesys Aerosystems (at least to my knowledge) does not provide any method to automate this process.  This tool is primarily a data-converter and validator (not flight-planning software) intended to save my brother and sister pilots some time.  Safe flying.
     </div>
     
     <div class="top-info-grid">
@@ -270,6 +286,9 @@
         </div>
         <div id="map"></div>
         <div style="padding: 10px; background: var(--secondary); text-align: right;"><button class="btn btn-danger" onclick="hideMap()">Close map</button></div>
+    </div> <footer class="app-footer">
+        <span class="disclaimer-bold">DISCLAIMER:</span> This tool is for flight planning purposes only and does not replace a qualified pilot, a current navigation database, or basic common sense. While the math is solid, gravity is a constant that doesn't care about your copy-paste errors. Verify all coordinates and identifiers against official FAA NASR data before use.
+    </footer>
     </div>
 </div>
 
