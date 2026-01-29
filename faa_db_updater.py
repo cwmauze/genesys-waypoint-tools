@@ -4,6 +4,7 @@ import datetime
 import requests
 import zipfile
 import io
+import re
 
 # --- CONFIGURATION: FAA 28-Day NASR Field Positions ---
 # Cycle 2601 Standards
@@ -31,59 +32,97 @@ FIX_COLS = {
     'lon': (80, 92)
 }
 
-# --- MODULE 1: FETCHER (The "Robot") ---
+# --- MODULE 1: FETCHER (The Scraper) ---
 def get_current_airac_cycle():
     """
     Calculates the current FAA AIRAC cycle effective date.
     Cycle 2601 Effective Date: Jan 22, 2026.
     Cycle duration: 28 days.
     """
-    # Corrected Base Date for Cycle 2601
-    base_date = datetime.date(2026, 1, 22)
+    base_date = datetime.date(2026, 1, 22) # Confirmed Cycle 2601 start
     today = datetime.date.today()
     
-    # Calculate days passed since the base cycle start
     delta = (today - base_date).days
-    
-    # Calculate how many full 28-day cycles have passed
     cycles_passed = delta // 28
     
-    # The effective date is the base date + (N * 28 days)
     current_cycle_start = base_date + datetime.timedelta(days=cycles_passed*28)
-    
     return current_cycle_start
 
 def download_faa_data():
     """
-    Downloads and extracts the specific 28-day subscription file from the FAA.
+    Scrapes the FAA NASR website to find and download the official 28-day subscription zip.
     """
     cycle_date = get_current_airac_cycle()
-    date_str = cycle_date.strftime("%Y-%m-%d") # Format: 2026-01-25
+    date_str = cycle_date.strftime("%Y-%m-%d") # e.g., 2026-01-22
     
-    url = f"https://nfdc.faa.gov/webContent/28DaySub/{date_str}/28DaySubscription_NS.zip"
-    print(f"[-] Attempting to download Cycle Effective: {date_str}")
-    print(f"[-] URL: {url}")
+    # 1. Visit the Cycle Landing Page (Official FAA Source)
+    # This page always exists for active cycles and contains the real download link
+    landing_url = f"https://www.faa.gov/air_traffic/flight_info/aeronav/aero_data/NASR_Subscription/{date_str}"
+    
+    print(f"[-] Accessing Cycle Page: {landing_url}")
     
     try:
-        r = requests.get(url, stream=True)
-        if r.status_code == 200:
-            print("[-] Download successful. Extracting...")
-            z = zipfile.ZipFile(io.BytesIO(r.content))
-            
-            # We only need APT.txt, NAV.txt, and FIX.txt
-            # FAA sometimes buries them in folders, but usually they are at root or single folder.
-            # We will extract only what we need to the current folder.
-            
-            target_files = ['APT.txt', 'NAV.txt', 'FIX.txt']
-            for file_info in z.infolist():
-                if file_info.filename in target_files:
-                    z.extract(file_info, ".")
-                    print(f"    > Extracted {file_info.filename}")
-            print("[-] Extraction complete.")
-            return True, date_str
-        else:
-            print(f"[!] Error: Failed to download. Status Code: {r.status_code}")
+        # We need a User-Agent because FAA blocks generic Python scripts
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        
+        page_resp = requests.get(landing_url, headers=headers, timeout=15)
+        
+        if page_resp.status_code != 200:
+            print(f"[!] Error: Landing page not found ({page_resp.status_code}). Cycle {date_str} might not be published yet.")
             return False, None
+            
+        # 2. Extract the ZIP link using Regex
+        # Look for: href=".../28DaySubscription_NS.zip" or "28DaySubscription_Effective_....zip"
+        # The regex finds any href ending in .zip
+        match = re.search(r'href=["\']([^"\']+\.zip)["\']', page_resp.text)
+        
+        # Fallback: Sometimes the link is absolute
+        if not match:
+             match = re.search(r'href=["\'](https://[^"\']+\.zip)["\']', page_resp.text)
+            
+        if match:
+            zip_url = match.group(1)
+            
+            # Handle relative URLs if necessary
+            if not zip_url.startswith("http"):
+                zip_url = "https://www.faa.gov" + zip_url
+                
+            print(f"[-] Found ZIP URL: {zip_url}")
+            
+            # 3. Download the File
+            r = requests.get(zip_url, headers=headers, stream=True)
+            if r.status_code == 200:
+                print("[-] Downloading...")
+                try:
+                    z = zipfile.ZipFile(io.BytesIO(r.content))
+                    
+                    target_files = ['APT.txt', 'NAV.txt', 'FIX.txt']
+                    extracted = 0
+                    for file_info in z.infolist():
+                        # FAA sometimes puts files in subfolders, we flatten them here
+                        fname = os.path.basename(file_info.filename)
+                        if fname in target_files:
+                            file_info.filename = fname # Flatten path
+                            z.extract(file_info, ".")
+                            print(f"    > Extracted {fname}")
+                            extracted += 1
+                    
+                    if extracted > 0:
+                        print("[-] Extraction complete.")
+                        return True, date_str
+                    else:
+                        print("[!] ZIP downloaded but did not contain expected text files (APT.txt, NAV.txt, FIX.txt).")
+                        return False, None
+                except zipfile.BadZipFile:
+                    print("[!] Error: The downloaded file was not a valid ZIP.")
+                    return False, None
+            else:
+                print(f"[!] Download failed with code {r.status_code}")
+                return False, None
+        else:
+            print("[!] Could not find a ZIP download link on the FAA page.")
+            return False, None
+
     except Exception as e:
         print(f"[!] Critical Error: {e}")
         return False, None
@@ -135,6 +174,7 @@ def build_database(cycle_date_str):
         count = 0
         with open('NAV.txt', 'r', encoding='latin-1') as f:
             for line in f:
+                # NAV1 is the primary record type for Navaids
                 if line.startswith('NAV1'):
                     raw_type = line[NAV_COLS['type'][0]:NAV_COLS['type'][1]].strip()
                     nav_type = "VOR" # Simplify for Genesys/Garmin compatibility
@@ -154,6 +194,7 @@ def build_database(cycle_date_str):
         count = 0
         with open('FIX.txt', 'r', encoding='latin-1') as f:
             for line in f:
+                # FIX1 is the primary record type for Waypoints
                 if line.startswith('FIX1'):
                     master.append({
                         "id": line[FIX_COLS['id'][0]:FIX_COLS['id'][1]].strip(),
@@ -172,11 +213,7 @@ def build_database(cycle_date_str):
     with open('faa_master.json', 'w') as f:
         json.dump(master, f)
     
-    # 2. Version File (Updates the 'cycle' to trigger web app refresh)
-    # We estimate the 4-digit cycle code (YYCC) roughly or just use the date
-    # Ideally, we map 2026-01-25 -> 2601. For now, let's use the Date String as the cycle ID
-    # or you can write a helper to calculate the 4-digit code.
-    
+    # 2. Version File
     version_data = {
         "cycle": cycle_date_str, 
         "updated": datetime.datetime.now().isoformat()
