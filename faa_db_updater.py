@@ -34,26 +34,22 @@ FIX_COLS = {
 # --- MODULE 1: FETCHER (The "Robot") ---
 def get_current_airac_cycle():
     """
-    Calculates the current FAA AIRAC cycle (e.g., '2601').
-    Base date: Cycle 2601 started on Jan 25, 2026.
+    Calculates the current FAA AIRAC cycle effective date.
+    Cycle 2601 Effective Date: Jan 22, 2026.
     Cycle duration: 28 days.
     """
-    base_date = datetime.date(2026, 1, 25)
-    base_cycle = 2601
+    # Corrected Base Date for Cycle 2601
+    base_date = datetime.date(2026, 1, 22)
     today = datetime.date.today()
     
+    # Calculate days passed since the base cycle start
     delta = (today - base_date).days
+    
+    # Calculate how many full 28-day cycles have passed
     cycles_passed = delta // 28
     
-    # Calculate cycle number roughly (handling year rollovers is complex, 
-    # but for simple year-round math we can just construct the date string)
-    # Better approach: Find the start date of the CURRENT cycle.
-    
+    # The effective date is the base date + (N * 28 days)
     current_cycle_start = base_date + datetime.timedelta(days=cycles_passed*28)
-    
-    # FAA Format is complicated (YY + Cycle #), but the URL usually requires the date.
-    # The FAA NASR URL format is: https://nfdc.faa.gov/webContent/28DaySub/{YYYY}-{MM}-{DD}/28DaySubscription_NS.zip
-    # We need the DATE of the current cycle's effective start.
     
     return current_cycle_start
 
