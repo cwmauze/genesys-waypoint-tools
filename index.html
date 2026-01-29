@@ -120,7 +120,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
-        <b>v8.4.1</b> - UI UPDATE: Added real-time binary size estimation and waypoint composition stats. Improved status alignment.<br>
+        <b>v8.4.1</b> - UI UPDATE: Added Dual-Time (Local/Zulu), explicit AIRAC Cycle display, and real-time database verification timestamp.<br>
         <b>v8.4</b> - STABLE RELEASE: Integrated forensic binary engine for .RTE flight plans (11,752 byte container).<br>
         <b>v8.3.1.8</b> - FIXED: Rewrote .RTE Exporter with "Golden Master" logic (Flags, Leg Shifts, and CRC-32).<br>
         <b>v8.3.1.7</b> - LOGIC PATCH: Smart disambiguation for duplicate IDs. 3-letter inputs prioritize NAVAIDs; 4-letter (K/P) prioritize Airports.<br>
@@ -165,7 +165,7 @@
         <div class="session-status-card">
             <div style="font-weight: bold; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; font-size: 10px; display: flex; justify-content: space-between;">
                 <span>Session status</span>
-                <span id="local-clock">00:00:00</span>
+                <span id="local-clock">00:00 L | 00:00 Z</span>
             </div>
             
             <div class="status-line">
@@ -200,10 +200,18 @@
             </div>
 
             <div class="status-line">
-                <span>FAA DB Sync:</span> 
+                <span>AIRAC Cycle:</span> 
                 <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
-                    <span onclick="checkVersionAndSync()" style="cursor:pointer; font-size:14px; line-height:1; color:var(--link);" title="Check for Updates">↻</span>
-                    <span id="dbText" onclick="resetDatabase()" style="cursor:pointer; opacity:0.8; font-size:10px; border-bottom:1px dotted #888;" title="Force Full Reset">Checking...</span>
+                    <span id="airac-display" style="font-weight:bold;">Loading...</span>
+                    <div style="width:8px;"></div>
+                </div>
+            </div>
+
+            <div class="status-line">
+                <span>Database Check:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span onclick="resetDatabase()" style="cursor:pointer; font-size:14px; line-height:1; color:var(--link); margin-right:5px;" title="Force Full Reset">↻</span>
+                    <span id="dbText" style="opacity:0.8; font-size:10px;">Checking...</span>
                     <div class="status-dot" id="dbDot"></div>
                 </div>
             </div>
@@ -430,12 +438,33 @@ async function checkVersionAndSync() {
         const vResp = await fetch(VERSION_URL); const remote = await vResp.json();
         const localCycle = localStorage.getItem('faa_cycle');
         const dbVer = localStorage.getItem('db_schema_ver');
+        
+        updateAiracDisplay(remote.cycle);
+
         if (remote.cycle !== localCycle || dbVer !== '2') {
-            updateDBStatus("loading", `Syncing ${remote.cycle}...`);
+            updateDBStatus("loading", `Syncing...`);
             const dResp = await fetch(FAA_DATA_URL); const data = await dResp.json();
             await saveToIndexedDB(data, remote.cycle);
-        } else { updateDBStatus("ready", remote.cycle); dbReady = true; }
+        } else { 
+            updateDBStatus("ready", "Verified"); 
+            dbReady = true; 
+        }
     } catch (e) { updateDBStatus("error", "Offline"); }
+}
+
+function updateAiracDisplay(dateStr) {
+    // Calculates estimated AIRAC Cycle based on 2026-01-22 anchor
+    try {
+        const d = new Date(dateStr);
+        if(isNaN(d)) { document.getElementById('airac-display').innerText = dateStr; return; }
+        const anchor = new Date("2026-01-22T00:00:00Z"); // Cycle 2601 Start
+        const target = new Date(dateStr + "T00:00:00Z");
+        const diffDays = Math.round((target - anchor) / (1000*60*60*24));
+        const cycle = 2601 + Math.round(diffDays / 28);
+        const mon = target.toLocaleString('en-us', { month: 'short' }).toUpperCase();
+        const day = target.getUTCDate();
+        document.getElementById('airac-display').innerText = `${cycle} (Eff. ${day}-${mon})`;
+    } catch(e) { document.getElementById('airac-display').innerText = dateStr; }
 }
 
 function resetDatabase() {
@@ -450,14 +479,21 @@ function saveToIndexedDB(data, cycle) {
         request.onsuccess = (e) => {
             const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readwrite"); const store = tx.objectStore(FAA_STORE_NAME); 
             store.clear(); data.forEach(item => store.add(item));
-            tx.oncomplete = () => { localStorage.setItem('faa_cycle', cycle); localStorage.setItem('db_schema_ver', '2'); updateDBStatus("ready", cycle); dbReady = true; resolve(); };
+            tx.oncomplete = () => { localStorage.setItem('faa_cycle', cycle); localStorage.setItem('db_schema_ver', '2'); updateDBStatus("ready", "Verified"); dbReady = true; resolve(); };
         };
     });
 }
 
 function updateDBStatus(state, text) {
     document.getElementById('dbDot').className = "status-dot " + state;
-    document.getElementById('dbText').innerText = text;
+    if (state === "ready") {
+        const now = new Date();
+        const l = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const z = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
+        document.getElementById('dbText').innerText = `${l}L (${z}Z)`;
+    } else {
+        document.getElementById('dbText').innerText = text;
+    }
 }
 
 function updateSessionStats() {
@@ -913,7 +949,16 @@ function toggleVersionHistory() {
     const overlay = document.getElementById('historyOverlay'), box = document.getElementById('versionHistory');
     const isShowing = overlay.style.display === 'block'; overlay.style.display = isShowing ? 'none' : 'block'; box.style.display = isShowing ? 'none' : 'block';
 }
-function startClock() { setInterval(() => { document.getElementById('local-clock').innerText = new Date().toLocaleTimeString('en-GB', { hour12: false }); }, 1000); }
+
+function startClock() { 
+    setInterval(() => { 
+        const now = new Date();
+        const local = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const zulu = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
+        document.getElementById('local-clock').innerText = `${local} L | ${zulu} Z`; 
+    }, 1000); 
+}
+
 function updateRowNumbers() { tbody.querySelectorAll('tr').forEach((r, i) => { if(r.cells[3]) r.cells[3].innerText = i + 1; }); }
 function updateColumnVisibility() { document.getElementById('actionBar').style.display = tbody.rows.length > 0 ? 'flex' : 'none'; }
 function logAction(a) { document.getElementById('last-action').innerText = a; document.getElementById('wp-count-display').innerText = tbody.querySelectorAll('tr').length; }
@@ -967,6 +1012,7 @@ function validateAndExportGenesys() {
 }
 function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
 
+/* --- REPLACED: .RTE EXPORT HANDLER (Uses New Engine) --- */
 function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
