@@ -17,6 +17,7 @@
             --earth: #2d81ff; --link: #a3c7ff; --foreflight: #007aff;
             --header-sep: rgba(255, 255, 255, 0.1);
             --stripe: rgba(255, 255, 255, 0.03); 
+            --glass: rgba(30, 31, 32, 0.98);
         }
         [data-theme="light"] {
             --bg: #f0f2f5; --card: #ffffff; --text: #1c1e21; --border: #dadde1;
@@ -24,6 +25,7 @@
             --link: #1a73e8;
             --header-sep: rgba(0, 0, 0, 0.1);
             --stripe: rgba(0, 0, 0, 0.02);
+            --glass: rgba(255, 255, 255, 0.95);
         }
 
         /* ---------------------------------------------------------
@@ -89,11 +91,15 @@
         tr.drag-over { border-top: 3px solid var(--primary) !important; background: rgba(71, 141, 245, 0.05); }
         .row-number { text-align: center; font-family: monospace; opacity: 0.7; font-size: 11px; }
 
-        #mapOverlay { display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; background: var(--card); z-index: 3000; border: 2px solid var(--primary); border-radius: 12px; }
-        #map { width: 100%; height: calc(100% - 60px); }
+        /* --- UPDATED MAP CONTAINER (Replaces Old Overlay) --- */
+        #mapOverlay { 
+            display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; 
+            background: var(--card); z-index: 3000; border: 2px solid var(--primary); 
+            border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        #mapOverlay.maximized { width: 100vw; height: 100vh; top: 0; left: 0; border: none; border-radius: 0; }
+        #map { width: 100%; height: 100%; background: #222; }
 
-        .map-toggle-panel { position: absolute; top: 12px; right: 10px; z-index: 4001; background: var(--card); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border); font-size: 11px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); color: var(--text); }
-        .toggle-item { display: flex; align-items: center; gap: 6px; }
         .numbered-marker { background: var(--primary); border: 2px solid white; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 20px; font-size: 10px; }
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 5999; }
@@ -108,7 +114,7 @@
         .autocomplete-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 11px; }
         .autocomplete-item:hover { background: var(--primary) !important; color: white; }
 
-        .leg-label { background: rgba(0, 0, 0, 0.75); border: 1px solid var(--primary); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; white-space: nowrap; }
+        .leg-label { background: rgba(0, 0, 0, 0.75); border: 1px solid var(--primary); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; white-space: nowrap; pointer-events: none; }
 
         /* FOOTER STYLE */
         .app-footer {
@@ -124,10 +130,63 @@
             font-weight: bold;
             color: var(--text);
         }
+
+        /* --- NEW MAP COMMAND BAR --- */
+        .map-command-bar {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: auto; background: var(--glass); border: 1px solid var(--border); border-radius: 12px;
+            padding: 10px 20px; display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px); z-index: 9999 !important;
+        }
+
+        .cmd-group { display: flex; align-items: center; gap: 8px; position: relative; }
+        .cmd-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+        .layer-switch { display: flex; background: rgba(0,0,0,0.4); border-radius: 6px; padding: 2px; border: 1px solid var(--border); }
+        .layer-btn {
+            background: transparent; border: none; color: #888; padding: 8px 12px; font-size: 11px; font-weight: 600;
+            cursor: pointer; border-radius: 4px; transition: 0.2s;
+        }
+        .layer-btn.active { background: var(--primary); color: white; }
+
+        .popover-menu {
+            position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%);
+            background: #1c1c1e; border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+            display: none; flex-direction: column; gap: 6px; box-shadow: 0 5px 25px rgba(0,0,0,0.8);
+            min-width: 180px; z-index: 10000 !important;
+        }
+        .popover-menu.visible { display: flex; }
+        .popover-label { font-size: 9px; color: #888; text-transform: uppercase; padding: 0 5px; font-weight: bold; margin-bottom: 2px; }
+
+        .toggle-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text);
+            padding: 8px 14px; font-size: 11px; border-radius: 20px; cursor: pointer; display: flex;
+            align-items: center; gap: 8px; transition: 0.2s; white-space: nowrap; height: 32px; justify-content: center;
+        }
+        .popover-menu .toggle-btn { width: 100%; border-radius: 8px; justify-content: flex-start; height: auto; padding: 10px 14px; }
+        .toggle-btn.active { background: rgba(71, 141, 245, 0.2); border-color: var(--primary); color: var(--primary); }
+        .indicator { width: 6px; height: 6px; border-radius: 50%; background: #444; transition: 0.3s; }
+        .toggle-btn.active .indicator { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+        
+        .weather-active { border-color: #2d81ff !important; color: #2d81ff !important; background: rgba(45, 129, 255, 0.15) !important; }
+        .weather-active .indicator { background: #2d81ff; box-shadow: 0 0 6px #2d81ff; }
+
+        .action-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; height: 32px; display: flex; align-items: center; gap: 6px; }
+        .close-btn { background: var(--danger); border-color: var(--danger); color: white; }
+
+        #loader {
+            position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white;
+            padding: 8px 15px; border-radius: 20px; font-size: 11px; display: none; align-items: center;
+            gap: 10px; z-index: 10001; border: 1px solid var(--border);
+        }
+        .spinner { width: 12px; height: 12px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 
 <body onload="startClock(); initStickyObserver(); initAviationDB(); loadSession();">
+
+<div id="loader"><span class="spinner"></span> FETCHING DATA...</div>
 
 <div class="modal-overlay" id="historyOverlay" onclick="toggleVersionHistory()">
     <div id="versionHistory" onclick="event.stopPropagation()">
@@ -135,6 +194,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.3</b> - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.<br>
         <b>v8.4.2.1</b> - STABLE: Restored Input fields. Fixed Footer layout. Restored new Purpose text. Added Year to AIRAC.<br>
         <b>v8.4.2</b> - UI UPDATE: Added back rolling sections to timestamp. Updated waypoint tally totals.<br>
         <b>v8.4.1</b> - UI UPDATE: Added Dual-Time (Local/Zulu), explicit AIRAC Cycle display, and real-time database verification timestamp.<br>
@@ -153,7 +213,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.2.1 Stable</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3 Stable</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -280,22 +340,47 @@
     </div>
 
     <div id="mapOverlay">
-        <div class="map-toggle-panel">
-            <div class="toggle-item">
-                <input type="checkbox" id="idToggle" onchange="toggleRouteLayer()" style="width:auto; margin:0;">
-                <label for="idToggle" style="white-space:nowrap; cursor:pointer;">Show identifiers</label>
+        <div class="map-command-bar">
+            <div class="cmd-group">
+                <div class="layer-switch">
+                    <button class="layer-btn active" id="b-street" onclick="setBaseView('street')">Map</button>
+                    <button class="layer-btn" id="b-sat" onclick="setBaseView('sat')">Sat</button>
+                    <button class="layer-btn" id="chartMainBtn" onclick="toggleMenu('chartMenu')">Chart</button>
+                </div>
             </div>
-            <div class="toggle-item" style="padding-top: 4px; border-top: 1px solid var(--border);">
-                <input type="checkbox" id="routeToggle" onchange="updateMapControls()" style="width:auto; margin:0;">
-                <label for="routeToggle" style="white-space:nowrap; cursor:pointer;">Show route</label>
+            <div class="cmd-divider"></div>
+            <div class="cmd-group">
+                <button class="toggle-btn active" id="btn-ids" onclick="toggleOverlay('ids')"><div class="indicator"></div> IDs</button>
+                <button class="toggle-btn active" id="btn-route" onclick="toggleOverlay('route')"><div class="indicator"></div> Route</button>
+                <button class="toggle-btn" id="btn-legs" onclick="toggleOverlay('legs')"><div class="indicator"></div> Legs</button>
+                <div class="cmd-divider"></div>
+                <button class="toggle-btn" id="wxMainBtn" onclick="toggleMenu('wxMenu')"><div class="indicator"></div> Weather</button>
             </div>
-            <div class="toggle-item" id="legToggleContainer" style="display:none; padding-top: 4px; border-top: 1px solid var(--border);">
-                <input type="checkbox" id="legToggle" onchange="toggleRouteLayer()" style="width:auto; margin:0;">
-                <label for="legToggle" style="white-space:nowrap; cursor:pointer; font-size: 10px; opacity: 0.8;">Show leg data</label>
+            <div class="cmd-group" style="margin-left:auto;">
+                <button class="action-btn" onclick="fit()" title="Fit Route">Fit Route</button>
+                <button class="action-btn" onclick="toggleMaximize()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                </button>
+                <button class="action-btn close-btn" onclick="hideMap()">Close</button>
             </div>
         </div>
+
+        <div class="popover-menu" id="chartMenu">
+            <span class="popover-label">FAA Charts</span>
+            <button class="toggle-btn" id="c-heli" onclick="setChart('heli')"><div class="indicator"></div> Helicopter Route</button>
+            <button class="toggle-btn" id="c-hi" onclick="setChart('hi')"><div class="indicator"></div> IFR High Enroute</button>
+            <button class="toggle-btn" id="c-lo" onclick="setChart('lo')"><div class="indicator"></div> IFR Low Enroute</button>
+            <button class="toggle-btn" id="c-vfr" onclick="setChart('vfr')"><div class="indicator"></div> VFR Sectional</button>
+        </div>
+
+        <div class="popover-menu" id="wxMenu">
+            <span class="popover-label">Live Overlays</span>
+            <button class="toggle-btn" id="w-nex" onclick="toggleWX('nexrad')"><div class="indicator"></div> NEXRAD Radar</button>
+            <button class="toggle-btn" id="w-sat" onclick="toggleWX('ir_sat')"><div class="indicator"></div> IR Satellite</button>
+            <button class="toggle-btn" id="w-met" onclick="toggleWX('metar')"><div class="indicator"></div> METAR</button>
+        </div>
+
         <div id="map"></div>
-        <div style="padding: 10px; background: var(--secondary); text-align: right;"><button class="btn btn-danger" onclick="hideMap()">Close map</button></div>
     </div> 
 
     <footer class="app-footer">
@@ -308,6 +393,9 @@
 const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016; 
 let leafletMap = null, markerLayer = null, routeLayer = null, labelLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
 let lastLoadedExtension = '', coordDisplayMode = 0; 
+let layers = {}; // Global layers object for the new UI
+let activeBase = 'street', activeChart = null; // Global state for the new UI
+
 const FAA_DB_NAME = "FAANavData", FAA_STORE_NAME = "waypoints", tbody = document.getElementById('table-body');
 
 /* ------------------------------------------------------------------------------------------------
@@ -648,7 +736,7 @@ function parseFPL(text) {
         const id = rp.querySelector("waypoint-identifier")?.textContent;
         if (id && wpLookup[id]) wps.push({ id: id, name: "", lat: wpLookup[id].lat, lon: wpLookup[id].lon });
     });
-    if (wps.length > 0) { populateTable(wps); document.getElementById('routeToggle').checked = true; updateMapControls(); }
+    if (wps.length > 0) { populateTable(wps); updateMapControls(); }
 }
 
 function decodeBinary(buf) {
@@ -912,12 +1000,7 @@ function parseCoordinate(i) {
 }
 
 function updateMapControls() {
-    const routeOn = document.getElementById('routeToggle').checked;
-    const legContainer = document.getElementById('legToggleContainer');
-    legContainer.style.display = routeOn ? 'flex' : 'none';
-    if (!routeOn) document.getElementById('legToggle').checked = false;
-    if (routeOn) document.getElementById('idToggle').checked = true;
-    toggleRouteLayer();
+    toggleRouteLayer(true); 
 }
 
 function calculateLegData(p1, p2) {
@@ -931,25 +1014,138 @@ function calculateLegData(p1, p2) {
     return `${dist} nm | ${Math.round(brg).toString().padStart(3, '0')}°`;
 }
 
+/* --- UPDATED MAP LOGIC (INTEGRATED v8.4.3) --- */
+
 function showMap() {
     document.getElementById('mapOverlay').style.display = 'block';
-    const routeToggle = document.getElementById('routeToggle');
-    routeToggle.checked = (lastLoadedExtension === 'rte' || lastLoadedExtension === 'fpl');
     if (!leafletMap) {
-        leafletMap = L.map('map').setView([39.8, -98.5], 4);
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: 'OSM'}), 
-              sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution: 'Esri'}), 
-              sec = L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {attribution: 'FAA'});
-        osm.addTo(leafletMap); L.control.layers({ "Street": osm, "Satellite": sat, "Sectional": sec }, null, { position: 'bottomright' }).addTo(leafletMap);
-        markerLayer = L.layerGroup().addTo(leafletMap); routeLayer = L.polyline([], {color: 'magenta', weight: 3}).addTo(leafletMap); labelLayer = L.layerGroup().addTo(leafletMap);
+        // 1. Initialize Map
+        leafletMap = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.8, -98.5], 4);
+        
+        // 2. Define Layers (Now targeting the 'leafletMap' variable)
+        layers = {
+            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap),
+            sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+            vfr: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
+            lo: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
+            hi: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer/tile/{z}/{y}/{x}', {maxZoom: 10}),
+            heli: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Helicopter_Route_Charts/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
+            nexrad: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi", { layers: 'nexrad-n0r-900913', format: 'image/png', transparent: true, opacity: 0.5, version: '1.1.1' }),
+            ir_sat: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/east_ir.cgi", { layers: 'east_ir_4km_900913', format: 'image/png', transparent: true, opacity: 0.4, version: '1.1.1' }),
+            metar: L.layerGroup()
+        };
+
+        // 3. Initialize Global Overlay Groups
+        markerLayer = L.layerGroup().addTo(leafletMap); 
+        routeLayer = L.polyline([], {color: 'magenta', weight: 4}).addTo(leafletMap); 
+        labelLayer = L.layerGroup(); // Legs are optional now
+
+        // 4. Bind Click-Away Listener
+        leafletMap.on('click', () => document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible')));
     }
-    leafletMap.invalidateSize(); updateMapControls(); toggleRouteLayer(true); 
+    
+    leafletMap.invalidateSize(); 
+    toggleRouteLayer(true); 
 }
+
+// TOGGLE MENU (Chart/Weather Drop-ups)
+function toggleMenu(id) {
+    const menu = document.getElementById(id);
+    const isVisible = menu.classList.contains('visible');
+    document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible'));
+    if (!isVisible) menu.classList.add('visible');
+}
+
+// BASE VIEW SWITCHER (Map vs Sat)
+function setBaseView(type) {
+    if (activeChart) {
+        leafletMap.removeLayer(layers[activeChart]);
+        activeChart = null;
+        document.getElementById('chartMainBtn').classList.remove('active');
+        document.querySelectorAll('#chartMenu .toggle-btn').forEach(b => b.classList.remove('active'));
+    }
+    leafletMap.removeLayer(layers[activeBase]);
+    layers[type].addTo(leafletMap).bringToBack();
+    activeBase = type;
+    document.querySelectorAll('.layer-switch .layer-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('b-' + type).classList.add('active');
+    document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible'));
+}
+
+// CHART SELECTOR
+function setChart(type) {
+    if (activeBase !== 'sat') setBaseView('sat');
+    document.querySelectorAll('.layer-switch .layer-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('chartMainBtn').classList.add('active');
+    if (activeChart) leafletMap.removeLayer(layers[activeChart]);
+    activeChart = type;
+    layers[type].addTo(leafletMap).bringToFront();
+    document.querySelectorAll('#chartMenu .toggle-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('c-' + type).classList.add('active');
+    toggleMenu('chartMenu');
+}
+
+// WEATHER TOGGLE
+function toggleWX(type) {
+    const layer = layers[type];
+    if (leafletMap.hasLayer(layer)) leafletMap.removeLayer(layer);
+    else {
+        layer.addTo(leafletMap);
+        if (layer.setZIndex) layer.setZIndex(1000);
+        if (type === 'metar') fetchLiveMetars();
+    }
+    document.getElementById('w-' + type.substring(0,3)).classList.toggle('active');
+    const any = ['nexrad','ir_sat','metar'].some(k => leafletMap.hasLayer(layers[k]));
+    document.getElementById('wxMainBtn').classList.toggle('weather-active', any);
+}
+
+// OVERLAY TOGGLE (IDs, Route, Legs)
+function toggleOverlay(id) {
+    let layer;
+    if (id === 'ids') layer = markerLayer;
+    if (id === 'route') layer = routeLayer;
+    if (id === 'legs') layer = labelLayer;
+
+    if (leafletMap.hasLayer(layer)) leafletMap.removeLayer(layer); 
+    else { 
+        layer.addTo(leafletMap);
+        if (id === 'legs') { toggleRouteLayer(); labelLayer.getLayers().forEach(l => l.bringToFront()); }
+    }
+    document.getElementById('btn-' + id).classList.toggle('active');
+}
+
+// LIVE METAR FETCH (With Proxy for CORS)
+async function fetchLiveMetars() {
+    document.getElementById('loader').style.display = 'flex';
+    const targetUrl = 'https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50';
+    const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    
+    try {
+        const r = await fetch(proxiedUrl);
+        const data = await r.json();
+        layers.metar.clearLayers();
+        const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
+        data.forEach(m => {
+            if (m.lat && m.lon) {
+                const col = colors[m.fltcat] || '#888';
+                L.circleMarker([m.lat, m.lon], {radius: 5, fillColor: col, color: '#fff', weight: 1, fillOpacity: 0.9})
+                 .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb}</small>`)
+                 .addTo(layers.metar);
+            }
+        });
+        layers.metar.getLayers().forEach(l => l.bringToFront());
+    } catch (e) { console.error("Proxy Fetch Error:", e); }
+    document.getElementById('loader').style.display = 'none';
+}
+
+function toggleMaximize() { document.getElementById('mapOverlay').classList.toggle('maximized'); setTimeout(() => leafletMap.invalidateSize(), 400); }
+function fit() { if(routeLayer && routeLayer.getLatLngs().length > 0) leafletMap.fitBounds(routeLayer.getBounds(), {padding: [50, 50]}); }
 
 function toggleRouteLayer(isInitial = false) {
     if (!leafletMap || !routeLayer || !markerLayer || !labelLayer) return;
-    const isRouteEnabled = document.getElementById('routeToggle').checked, isLegDataEnabled = document.getElementById('legToggle').checked, isIDToggleEnabled = document.getElementById('idToggle').checked;
-    const coords = []; let bounds = []; markerLayer.clearLayers(); routeLayer.setLatLngs([]); labelLayer.clearLayers();
+    const coords = []; let bounds = []; 
+    markerLayer.clearLayers(); routeLayer.setLatLngs([]); labelLayer.clearLayers();
+    
     tbody.querySelectorAll('tr').forEach((r, idx) => {
         const inps = r.querySelectorAll('input');
         if (inps.length >= 4) {
@@ -957,23 +1153,24 @@ function toggleRouteLayer(isInitial = false) {
             if (!isNaN(lat) && lat !== 0) {
                 const pos = [lat, lon]; coords.push(pos); bounds.push(pos);
                 let popupContent = `<b>${inps[0].value || 'WP'}</b>`;
-                if (!isRouteEnabled && inps[1].value) popupContent += `<div style="font-size: 11px; margin-top: 2px; opacity: 0.8; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 2px;">${inps[1].value}</div>`;
-                const markerOpts = isRouteEnabled ? {icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})} : {};
-                const marker = L.marker(pos, markerOpts).addTo(markerLayer).bindPopup(popupContent);
-                if (isIDToggleEnabled) marker.bindTooltip(inps[0].value || `WP${idx+1}`, { permanent: true, direction: 'top', offset: [0, -10] });
+                if (inps[1].value) popupContent += `<br><span style="font-size:10px;opacity:0.8;">${inps[1].value}</span>`;
+                const marker = L.marker(pos, {icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})}).addTo(markerLayer).bindPopup(popupContent);
+                marker.bindTooltip(inps[0].value || `WP${idx+1}`, { permanent: true, direction: 'top', offset: [0, -10] });
             }
         }
     });
-    if (isRouteEnabled && coords.length > 1) {
+
+    if (coords.length > 1) {
         routeLayer.setLatLngs(coords);
-        if (isLegDataEnabled) {
-            for (let i = 0; i < coords.length - 1; i++) {
-                const midLat = (coords[i][0] + coords[i+1][0]) / 2, midLon = (coords[i][1] + coords[i+1][1]) / 2;
-                const legInfo = calculateLegData(coords[i], coords[i+1]);
-                L.marker([midLat, midLon], { icon: L.divIcon({ className: 'leg-label', html: legInfo, iconSize: [70, 20], iconAnchor: [35, 10] }) }).addTo(labelLayer);
-            }
+        // Recalculate Legs
+        for (let i = 0; i < coords.length - 1; i++) {
+            const midLat = (coords[i][0] + coords[i+1][0]) / 2, midLon = (coords[i][1] + coords[i+1][1]) / 2;
+            const legInfo = calculateLegData(coords[i], coords[i+1]);
+            L.marker([midLat, midLon], { icon: L.divIcon({ className: 'leg-label', html: legInfo, iconSize: [80, 20], iconAnchor: [40, 10] }) }).addTo(labelLayer);
         }
     }
+    
+    // Initial Fit
     if (isInitial && bounds.length > 0) leafletMap.fitBounds(bounds, {padding: [50, 50]});
 }
 
@@ -985,9 +1182,7 @@ function toggleVersionHistory() {
 function startClock() { 
     setInterval(() => { 
         const now = new Date();
-        // toLocaleTimeString defaults to HH:MM:SS in most locales when no options are provided, 
-        // or we can explicitly ask for seconds.
-        const local = now.toLocaleTimeString('en-GB', { hour12: false }); // Defaults to HH:MM:SS
+        const local = now.toLocaleTimeString('en-GB', { hour12: false }); 
         const zulu = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: 'UTC' });
         document.getElementById('local-clock').innerText = `${local} L | ${zulu} Z`; 
     }, 1000); 
