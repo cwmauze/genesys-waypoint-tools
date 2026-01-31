@@ -1137,32 +1137,28 @@ function toggleOverlay(id) {
     document.getElementById('btn-' + id).classList.toggle('active');
 }
 
-// LIVE METAR FETCH (Direct Connection for Hosted Sites)
+// LIVE METAR FETCH (Wrapped Proxy Strategy for GitHub Pages)
 async function fetchLiveMetars() {
     document.getElementById('loader').style.display = 'flex';
     
-    // 1. Define URLs
-    const directUrl = 'https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50';
-    // Fallback only used if Direct fails
-    const backupUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl);
+    // 1. Define the AWC Target URL (New API)
+    // We add a random cache-buster to prevent stale data
+    const targetUrl = `https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50&_=${Date.now()}`;
+    
+    // 2. Use 'AllOrigins' in "GET" mode (not raw). 
+    // This wraps the blocked data inside a safe JSON envelope.
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
     try {
-        let response;
+        const r = await fetch(proxyUrl);
+        if (!r.ok) throw new Error(`Proxy error: ${r.status}`);
         
-        try {
-            // ATTEMPT 1: Direct Connection (Best for GitHub Pages)
-            response = await fetch(directUrl);
-        } catch (err) {
-            console.warn("Direct connection failed (likely local file), switching to backup...");
-            // ATTEMPT 2: Backup Proxy (For local testing or strict networks)
-            response = await fetch(backupUrl);
-        }
-
-        if (!response.ok) throw new Error(`Server returned ${response.status}`);
-
-        const data = await response.json();
+        const wrapper = await r.json();
         
-        // RENDER DATA
+        // 3. Unwrap the data (The actual AWC JSON is inside .contents)
+        const data = JSON.parse(wrapper.contents);
+        
+        // Render Data
         layers.metar.clearLayers();
         const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
         
@@ -1172,15 +1168,18 @@ async function fetchLiveMetars() {
                 L.circleMarker([m.lat, m.lon], {
                     radius: 5, fillColor: col, color: '#fff', weight: 1, fillOpacity: 0.9
                 })
-                .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb}</small>`)
+                .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb || m.raw_text}</small>`)
                 .addTo(layers.metar);
             }
         });
-        layers.metar.getLayers().forEach(l => l.bringToFront());
         
+        layers.metar.getLayers().forEach(l => l.bringToFront());
+        console.log(`Loaded ${data.length} METARs via Proxy.`);
+
     } catch (e) { 
-        console.error("Weather Fetch Error:", e);
-        alert("Weather System Offline.\n\nCould not connect to AviationWeather.gov directly or via backup. This usually indicates the NWS API is down.");
+        console.error("METAR Failure:", e);
+        // If this fails, the AWC API is likely rejecting the specific BBOX or is down.
+        alert("Could not load weather. The NOAA/AWC server is blocking the connection.");
     }
     
     document.getElementById('loader').style.display = 'none';
