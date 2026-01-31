@@ -368,7 +368,7 @@
 
         <div class="popover-menu" id="chartMenu">
             <span class="popover-label">FAA Charts</span>
-            <button class="toggle-btn" id="c-heli" onclick="setChart('heli')"><div class="indicator"></div> Helicopter route</button>
+            <button class="toggle-btn" id="c-tac" onclick="setChart('tac')"><div class="indicator"></div> Terminal Area Chart</button>
             <button class="toggle-btn" id="c-hi" onclick="setChart('hi')"><div class="indicator"></div> IFR High enroute</button>
             <button class="toggle-btn" id="c-lo" onclick="setChart('lo')"><div class="indicator"></div> IFR Low enroute</button>
             <button class="toggle-btn" id="c-vfr" onclick="setChart('vfr')"><div class="indicator"></div> VFR sectional</button>
@@ -1030,7 +1030,11 @@ function showMap() {
             vfr: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
             lo: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
             hi: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer/tile/{z}/{y}/{x}', {maxZoom: 10}),
-            heli: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Helicopter_Route_Charts/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
+// Replace the broken 'heli' line with this VFR_Terminal line:
+tac: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Terminal/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 12, 
+    minZoom: 9
+}),
             nexrad: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi", { layers: 'nexrad-n0r-900913', format: 'image/png', transparent: true, opacity: 0.5, version: '1.1.1' }),
        ir_sat: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi", { 
     layers: 'goes_conus_ir', 
