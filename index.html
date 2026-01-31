@@ -1137,49 +1137,74 @@ function toggleOverlay(id) {
     document.getElementById('btn-' + id).classList.toggle('active');
 }
 
-// LIVE METAR FETCH (Wrapped Proxy Strategy for GitHub Pages)
+// LIVE METAR FETCH (CSV Stream - High Performance & Proxy Safe)
 async function fetchLiveMetars() {
     document.getElementById('loader').style.display = 'flex';
     
-    // 1. Define the AWC Target URL (New API)
-    // We add a random cache-buster to prevent stale data
-    const targetUrl = `https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50&_=${Date.now()}`;
-    
-    // 2. Use 'AllOrigins' in "GET" mode (not raw). 
-    // This wraps the blocked data inside a safe JSON envelope.
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+    // 1. Request CSV format (85% smaller than JSON, preventing proxy timeouts)
+    const targetUrl = `https://aviationweather.gov/api/data/metar?format=csv&bbox=-125,24,-66,50&_=${Date.now()}`;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
     try {
-        const r = await fetch(proxyUrl);
-        if (!r.ok) throw new Error(`Proxy error: ${r.status}`);
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
         
-        const wrapper = await r.json();
+        const text = await response.text();
+        const lines = text.split('\n');
         
-        // 3. Unwrap the data (The actual AWC JSON is inside .contents)
-        const data = JSON.parse(wrapper.contents);
-        
-        // Render Data
+        // 2. Clear old data
         layers.metar.clearLayers();
         const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
         
-        data.forEach(m => {
-            if (m.lat && m.lon) {
-                const col = colors[m.fltcat] || '#888';
-                L.circleMarker([m.lat, m.lon], {
-                    radius: 5, fillColor: col, color: '#fff', weight: 1, fillOpacity: 0.9
-                })
-                .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb || m.raw_text}</small>`)
-                .addTo(layers.metar);
+        // 3. Parse CSV (Find header row dynamically to be safe)
+        let headerIdx = -1;
+        let col = {}; // Column mapping
+        
+        for (let i = 0; i < Math.min(10, lines.length); i++) {
+            if (lines[i].includes('raw_text') && lines[i].includes('latitude')) {
+                headerIdx = i;
+                const h = lines[i].split(',');
+                // Map vital columns to their index
+                col.lat = h.indexOf('latitude');
+                col.lon = h.indexOf('longitude');
+                col.id  = h.indexOf('station_id');
+                col.cat = h.indexOf('flight_category');
+                col.raw = h.indexOf('raw_text');
+                break;
             }
-        });
+        }
+
+        if (headerIdx === -1) throw new Error("Invalid CSV format from NOAA");
+
+        // 4. Process Data Rows
+        let count = 0;
+        for (let i = headerIdx + 1; i < lines.length; i++) {
+            const row = lines[i].split(',');
+            if (row.length < 5) continue; // Skip empty lines
+
+            // Extract data using dynamic indices
+            const lat = parseFloat(row[col.lat]);
+            const lon = parseFloat(row[col.lon]);
+            const cat = row[col.cat]; // VFR, IFR, etc.
+            
+            if (!isNaN(lat) && !isNaN(lon) && cat) {
+                const color = colors[cat] || '#888';
+                
+                L.circleMarker([lat, lon], {
+                    radius: 5, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.9
+                })
+                .bindPopup(`<b>${row[col.id]}</b>: ${cat}<br><small>${row[col.raw]}</small>`)
+                .addTo(layers.metar);
+                count++;
+            }
+        }
         
         layers.metar.getLayers().forEach(l => l.bringToFront());
-        console.log(`Loaded ${data.length} METARs via Proxy.`);
+        console.log(`Success: Loaded ${count} METARs via CSV stream.`);
 
     } catch (e) { 
-        console.error("METAR Failure:", e);
-        // If this fails, the AWC API is likely rejecting the specific BBOX or is down.
-        alert("Could not load weather. The NOAA/AWC server is blocking the connection.");
+        console.error("Weather Error:", e);
+        alert("Weather Unavailable: The proxy could not retrieve the data stream. Please try again later.");
     }
     
     document.getElementById('loader').style.display = 'none';
