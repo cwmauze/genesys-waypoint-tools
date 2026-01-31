@@ -194,6 +194,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.3.1</b> - Fixed drop up menus. Fixed weather overlays.<br>
         <b>v8.4.3</b> - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.<br>
         <b>v8.4.2.1</b> - STABLE: Restored Input fields. Fixed Footer layout. Restored new Purpose text. Added Year to AIRAC.<br>
         <b>v8.4.2</b> - UI UPDATE: Added back rolling sections to timestamp. Updated waypoint tally totals.<br>
@@ -213,7 +214,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3 Stable</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.1 Stable</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -367,16 +368,16 @@
 
         <div class="popover-menu" id="chartMenu">
             <span class="popover-label">FAA Charts</span>
-            <button class="toggle-btn" id="c-heli" onclick="setChart('heli')"><div class="indicator"></div> Helicopter Route</button>
-            <button class="toggle-btn" id="c-hi" onclick="setChart('hi')"><div class="indicator"></div> IFR High Enroute</button>
-            <button class="toggle-btn" id="c-lo" onclick="setChart('lo')"><div class="indicator"></div> IFR Low Enroute</button>
-            <button class="toggle-btn" id="c-vfr" onclick="setChart('vfr')"><div class="indicator"></div> VFR Sectional</button>
+            <button class="toggle-btn" id="c-heli" onclick="setChart('heli')"><div class="indicator"></div> Helicopter route</button>
+            <button class="toggle-btn" id="c-hi" onclick="setChart('hi')"><div class="indicator"></div> IFR High enroute</button>
+            <button class="toggle-btn" id="c-lo" onclick="setChart('lo')"><div class="indicator"></div> IFR Low enroute</button>
+            <button class="toggle-btn" id="c-vfr" onclick="setChart('vfr')"><div class="indicator"></div> VFR sectional</button>
         </div>
 
         <div class="popover-menu" id="wxMenu">
             <span class="popover-label">Live Overlays</span>
-            <button class="toggle-btn" id="w-nex" onclick="toggleWX('nexrad')"><div class="indicator"></div> NEXRAD Radar</button>
-            <button class="toggle-btn" id="w-sat" onclick="toggleWX('ir_sat')"><div class="indicator"></div> IR Satellite</button>
+            <button class="toggle-btn" id="w-nex" onclick="toggleWX('nexrad')"><div class="indicator"></div> NEXRAD</button>
+            <button class="toggle-btn" id="w-sat" onclick="toggleWX('ir_sat')"><div class="indicator"></div> IR satellite</button>
             <button class="toggle-btn" id="w-met" onclick="toggleWX('metar')"><div class="indicator"></div> METAR</button>
         </div>
 
@@ -1031,7 +1032,13 @@ function showMap() {
             hi: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer/tile/{z}/{y}/{x}', {maxZoom: 10}),
             heli: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Helicopter_Route_Charts/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
             nexrad: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi", { layers: 'nexrad-n0r-900913', format: 'image/png', transparent: true, opacity: 0.5, version: '1.1.1' }),
-            ir_sat: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/east_ir.cgi", { layers: 'east_ir_4km_900913', format: 'image/png', transparent: true, opacity: 0.4, version: '1.1.1' }),
+       ir_sat: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi", { 
+    layers: 'goes_conus_ir', 
+    format: 'image/png', 
+    transparent: true, 
+    opacity: 0.5, 
+    version: '1.1.1' 
+}),
             metar: L.layerGroup()
         };
 
@@ -1053,7 +1060,23 @@ function toggleMenu(id) {
     const menu = document.getElementById(id);
     const isVisible = menu.classList.contains('visible');
     document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible'));
-    if (!isVisible) menu.classList.add('visible');
+    
+    if (!isVisible) {
+        // DYNAMIC POSITIONING FIX: Align menu to its parent button
+        const btnMap = { 'chartMenu': 'chartMainBtn', 'wxMenu': 'wxMainBtn' };
+        const btn = document.getElementById(btnMap[id]);
+        const container = document.getElementById('mapOverlay');
+        
+        if (btn && container) {
+            const btnRect = btn.getBoundingClientRect();
+            const contRect = container.getBoundingClientRect();
+            // Calculate center of button relative to the map overlay
+            // The existing CSS 'transform: translateX(-50%)' handles the centering alignment
+            const centerX = btnRect.left - contRect.left + (btnRect.width / 2);
+            menu.style.left = centerX + 'px';
+        }
+        menu.classList.add('visible');
+    }
 }
 
 // BASE VIEW SWITCHER (Map vs Sat)
@@ -1114,27 +1137,50 @@ function toggleOverlay(id) {
     document.getElementById('btn-' + id).classList.toggle('active');
 }
 
-// LIVE METAR FETCH (With Proxy for CORS)
 async function fetchLiveMetars() {
     document.getElementById('loader').style.display = 'flex';
-    const targetUrl = 'https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50';
-    const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    const target = 'https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50';
     
-    try {
-        const r = await fetch(proxiedUrl);
-        const data = await r.json();
-        layers.metar.clearLayers();
-        const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
-        data.forEach(m => {
-            if (m.lat && m.lon) {
-                const col = colors[m.fltcat] || '#888';
-                L.circleMarker([m.lat, m.lon], {radius: 5, fillColor: col, color: '#fff', weight: 1, fillOpacity: 0.9})
-                 .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb}</small>`)
-                 .addTo(layers.metar);
-            }
-        });
-        layers.metar.getLayers().forEach(l => l.bringToFront());
-    } catch (e) { console.error("Proxy Fetch Error:", e); }
+    // Strategy: Try two different proxy networks in sequence
+    const proxies = [
+        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+    ];
+
+    let success = false;
+    for (const proxyGen of proxies) {
+        if (success) break;
+        try {
+            const r = await fetch(proxyGen(target));
+            if (!r.ok) continue; // If proxy 1 fails, loop to proxy 2
+            
+            const data = await r.json();
+            
+            // Render Data
+            layers.metar.clearLayers();
+            const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
+            data.forEach(m => {
+                if (m.lat && m.lon) {
+                    const col = colors[m.fltcat] || '#888';
+                    L.circleMarker([m.lat, m.lon], {
+                        radius: 5, fillColor: col, color: '#fff', weight: 1, fillOpacity: 0.9
+                    })
+                    .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb}</small>`)
+                    .addTo(layers.metar);
+                }
+            });
+            layers.metar.getLayers().forEach(l => l.bringToFront());
+            success = true; // Mark as done to exit loop
+            
+        } catch (e) { 
+            console.warn("Proxy attempt failed, trying next...", e); 
+        }
+    }
+
+    if (!success) {
+        alert("Weather Data Blocked: Your browser is preventing this local file from accessing the internet (CORS Security). \n\nTo fix this permanently, run this file using a local web server (e.g., VS Code Live Server or Python http.server).");
+    }
+    
     document.getElementById('loader').style.display = 'none';
 }
 
