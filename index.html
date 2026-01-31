@@ -143,10 +143,22 @@
         .cmd-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
 
         .layer-switch { display: flex; background: rgba(0,0,0,0.4); border-radius: 6px; padding: 2px; border: 1px solid var(--border); }
-        .layer-btn {
-            background: transparent; border: none; color: #888; padding: 8px 12px; font-size: 11px; font-weight: 600;
-            cursor: pointer; border-radius: 4px; transition: 0.2s;
-        }
+.layer-btn {
+    background: transparent; 
+    border: none; 
+    color: #888; 
+    padding: 8px 12px; 
+    font-size: 11px; 
+    font-weight: 600;
+    cursor: pointer; 
+    border-radius: 4px; 
+    transition: 0.2s;
+    /* ADD THESE THREE LINES */
+    white-space: nowrap;      /* Prevents text from wrapping to a second line */
+    height: 32px;             /* Matches the height of your other action-btns */
+    display: flex;            /* Ensures vertical centering */
+    align-items: center;      /* Centers text vertically */
+}
         .layer-btn.active { background: var(--primary); color: white; }
 
         .popover-menu {
@@ -194,6 +206,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
         <b>v8.4.3.1</b> - Fixed drop up menus. Fixed weather overlays.<br>
         <b>v8.4.3</b> - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.<br>
         <b>v8.4.2.1</b> - STABLE: Restored Input fields. Fixed Footer layout. Restored new Purpose text. Added Year to AIRAC.<br>
@@ -214,7 +227,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.1 Stable</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.2 (Stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -344,7 +357,7 @@
         <div class="map-command-bar">
             <div class="cmd-group">
                 <div class="layer-switch">
-                    <button class="layer-btn active" id="b-street" onclick="setBaseView('street')">Map</button>
+              		<button class="layer-btn active" id="b-street" onclick="toggleMapStyle()">Map (Dark)</button>
                     <button class="layer-btn" id="b-sat" onclick="setBaseView('sat')">Sat</button>
                     <button class="layer-btn" id="chartMainBtn" onclick="toggleMenu('chartMenu')">Chart</button>
                 </div>
@@ -395,7 +408,7 @@ const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016;
 let leafletMap = null, markerLayer = null, routeLayer = null, labelLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
 let lastLoadedExtension = '', coordDisplayMode = 0; 
 let layers = {}; // Global layers object for the new UI
-let activeBase = 'street', activeChart = null; // Global state for the new UI
+let activeBase = 'dark', activeChart = null; // Global state for the new UI
 
 const FAA_DB_NAME = "FAANavData", FAA_STORE_NAME = "waypoints", tbody = document.getElementById('table-body');
 
@@ -1023,33 +1036,28 @@ function showMap() {
         // 1. Initialize Map
         leafletMap = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.8, -98.5], 4);
         
-        // 2. Define Layers (Now targeting the 'leafletMap' variable)
+        // 2. Define Layers
         layers = {
-            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap),
+            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© CartoDB', 
+                maxZoom: 20
+            }).addTo(leafletMap), // Dark is default
             sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
             vfr: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
             lo: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
             hi: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer/tile/{z}/{y}/{x}', {maxZoom: 10}),
-// Replace the broken 'heli' line with this VFR_Terminal line:
-tac: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Terminal/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 12, 
-    minZoom: 9
-}),
+            tac: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Terminal/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
             nexrad: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi", { layers: 'nexrad-n0r-900913', format: 'image/png', transparent: true, opacity: 0.5, version: '1.1.1' }),
-       ir_sat: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi", { 
-    layers: 'goes_conus_ir', 
-    format: 'image/png', 
-    transparent: true, 
-    opacity: 0.5, 
-    version: '1.1.1' 
-}),
+            ir_sat: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi", { layers: 'goes_conus_ir', format: 'image/png', transparent: true, opacity: 0.5, version: '1.1.1' }),
             metar: L.layerGroup()
         };
 
         // 3. Initialize Global Overlay Groups
+        activeBase = 'dark';
         markerLayer = L.layerGroup().addTo(leafletMap); 
         routeLayer = L.polyline([], {color: 'magenta', weight: 4}).addTo(leafletMap); 
-        labelLayer = L.layerGroup(); // Legs are optional now
+        labelLayer = L.layerGroup();
 
         // 4. Bind Click-Away Listener
         leafletMap.on('click', () => document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible')));
@@ -1083,20 +1091,56 @@ function toggleMenu(id) {
     }
 }
 
-// BASE VIEW SWITCHER (Map vs Sat)
+// BASE VIEW SWITCHER (Map Light/Dark vs Sat)
 function setBaseView(type) {
+    // 1. Clear any active charts if switching to a base map
     if (activeChart) {
         leafletMap.removeLayer(layers[activeChart]);
         activeChart = null;
         document.getElementById('chartMainBtn').classList.remove('active');
         document.querySelectorAll('#chartMenu .toggle-btn').forEach(b => b.classList.remove('active'));
     }
-    leafletMap.removeLayer(layers[activeBase]);
+    
+    // 2. Switch the Base Layer
+    if (layers[activeBase]) {
+        leafletMap.removeLayer(layers[activeBase]);
+    }
     layers[type].addTo(leafletMap).bringToBack();
     activeBase = type;
+
+    // 3. Update UI & Button Text
     document.querySelectorAll('.layer-switch .layer-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('b-' + type).classList.add('active');
+    const mapBtn = document.getElementById('b-street');
+
+    if (type === 'dark') {
+        mapBtn.classList.add('active');
+        mapBtn.innerText = "Map (Dark)";
+    } else if (type === 'street') {
+        mapBtn.classList.add('active');
+        mapBtn.innerText = "Map (Light)";
+    } else {
+        // Satellite mode
+        document.getElementById('b-' + type).classList.add('active');
+        mapBtn.innerText = "Map"; // Reset to generic if we are on Satellite
+    }
+
     document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible'));
+}
+
+// SMART TOGGLE: Cycles between Street -> Dark -> Street
+function toggleMapStyle() {
+    // 1. If we are currently on Satellite, go to Dark (Default) first
+    if (activeBase === 'sat' || !activeBase) {
+        setBaseView('dark');
+        return;
+    }
+
+    // 2. Cycle logic
+    if (activeBase === 'street') {
+        setBaseView('dark');
+    } else {
+        setBaseView('street');
+    }
 }
 
 // CHART SELECTOR
@@ -1115,15 +1159,38 @@ function setChart(type) {
 // WEATHER TOGGLE
 function toggleWX(type) {
     const layer = layers[type];
-    if (leafletMap.hasLayer(layer)) leafletMap.removeLayer(layer);
-    else {
+    
+    // 1. Toggle the Layer on the Map
+    if (leafletMap.hasLayer(layer)) {
+        leafletMap.removeLayer(layer);
+    } else {
         layer.addTo(leafletMap);
         if (layer.setZIndex) layer.setZIndex(1000);
         if (type === 'metar') fetchLiveMetars();
     }
-    document.getElementById('w-' + type.substring(0,3)).classList.toggle('active');
+    
+    // 2. FIX: Update Button State (Using Explicit ID Mapping)
+    // This prevents the bug where 'ir_sat' was looking for 'w-ir_' instead of 'w-sat'
+    const btnMap = { 
+        'nexrad': 'w-nex', 
+        'ir_sat': 'w-sat', 
+        'metar':  'w-met' 
+    };
+    
+    const btn = document.getElementById(btnMap[type]);
+    if (btn) {
+        // Force the button style to match the actual map state
+        if (leafletMap.hasLayer(layer)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    }
+
+    // 3. Update Main "Weather" Button (Blue if any overlay is active)
     const any = ['nexrad','ir_sat','metar'].some(k => leafletMap.hasLayer(layers[k]));
-    document.getElementById('wxMainBtn').classList.toggle('weather-active', any);
+    const mainBtn = document.getElementById('wxMainBtn');
+    if (mainBtn) mainBtn.classList.toggle('weather-active', any);
 }
 
 // OVERLAY TOGGLE (IDs, Route, Legs)
