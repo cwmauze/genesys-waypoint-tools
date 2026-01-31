@@ -1137,49 +1137,48 @@ function toggleOverlay(id) {
     document.getElementById('btn-' + id).classList.toggle('active');
 }
 
-// LIVE METAR FETCH (CSV Stream via AllOrigins with Retry Logic)
+// LIVE METAR FETCH (Official Static Cache Strategy)
+// Downloads the full NOAA static cache file to bypass API rate limits/blocks.
 async function fetchLiveMetars() {
     document.getElementById('loader').style.display = 'flex';
     
-    // 1. Setup the target URL (CSV format is lightweight)
-    // We add a random parameter to force a fresh copy from the FAA
-    const targetUrl = `https://aviationweather.gov/api/data/metar?format=csv&bbox=-125,24,-66,50&_=${Date.now()}`;
+    // 1. Target the Official Static Cache File (approx 5MB compressed)
+    // NOAA recommends this for bulk access. It's a static file, so it's rarely blocked.
+    const targetUrl = "https://aviationweather.gov/data/cache/metars.cache.csv.gz";
     
-    // 2. Use AllOrigins "Raw" mode. It is more robust for text streams than corsproxy.io
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-
-    // 3. Helper function to try fetching with retries
-    const fetchWithRetry = async (url, retries = 3) => {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const r = await fetch(url);
-                if (!r.ok) throw new Error(`Status ${r.status}`);
-                return await r.text();
-            } catch (err) {
-                console.warn(`Attempt ${i + 1} failed:`, err);
-                if (i === retries - 1) throw err; // Throw on final failure
-                await new Promise(res => setTimeout(res, 1000)); // Wait 1s before retry
-            }
-        }
-    };
+    // 2. Use a CORS proxy that supports binary data (corsproxy.io)
+    // We add a timestamp to prevent the proxy from serving stale data
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}?_=${Date.now()}`;
 
     try {
-        // Attempt the download
-        const text = await fetchWithRetry(proxyUrl);
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`Proxy status: ${response.status}`);
         
-        // 4. Validate Data (Did we actually get CSV or an error page?)
-        if (!text.includes('raw_text') || !text.includes('latitude')) {
-            throw new Error("Invalid Data: Proxy returned a blocked/error page instead of CSV.");
+        // 3. Decompress the GZIP stream on the fly (Native Browser API)
+        // This converts the binary .gz stream into readable text
+        const ds = new DecompressionStream('gzip');
+        const decompressedStream = response.body.pipeThrough(ds);
+        const reader = decompressedStream.getReader();
+        const decoder = new TextDecoder();
+        
+        let csvText = '';
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            csvText += decoder.decode(value, { stream: true });
         }
+        csvText += decoder.decode(); // Flush remaining bytes
 
-        const lines = text.split('\n');
+        // 4. Parse the Massive CSV
+        const lines = csvText.split('\n');
         layers.metar.clearLayers();
         const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
         
-        // 5. Dynamic Header Parsing (Finds the columns regardless of order)
+        // Dynamic Header Mapping
         let col = {}; 
         let headerIdx = -1;
         
+        // Scan first 20 lines for header (NOAA headers vary slightly)
         for (let i = 0; i < Math.min(20, lines.length); i++) {
             if (lines[i].includes('raw_text') && lines[i].includes('latitude')) {
                 headerIdx = i;
@@ -1193,9 +1192,9 @@ async function fetchLiveMetars() {
             }
         }
 
-        if (headerIdx === -1) throw new Error("Could not find CSV headers.");
+        if (headerIdx === -1) throw new Error("Decompression successful, but CSV headers missing.");
 
-        // 6. Process Rows
+        // 5. Render Data (Filter for US/North America BBOX to boost performance)
         let count = 0;
         for (let i = headerIdx + 1; i < lines.length; i++) {
             const row = lines[i].split(',');
@@ -1203,25 +1202,28 @@ async function fetchLiveMetars() {
 
             const lat = parseFloat(row[col.lat]);
             const lon = parseFloat(row[col.lon]);
-            const cat = row[col.cat];
             
-            if (!isNaN(lat) && !isNaN(lon) && cat) {
-                const color = colors[cat] || '#888';
-                L.circleMarker([lat, lon], {
-                    radius: 4, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.9
-                })
-                .bindPopup(`<b>${row[col.id]}</b>: ${cat}<br><small>${row[col.raw]}</small>`)
-                .addTo(layers.metar);
-                count++;
+            // Optimization: Only render visible area (North America approx)
+            if (lat > 10 && lat < 70 && lon > -170 && lon < -50) {
+                const cat = row[col.cat];
+                if (!isNaN(lat) && !isNaN(lon) && cat) {
+                    const color = colors[cat] || '#888';
+                    L.circleMarker([lat, lon], {
+                        radius: 4, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.9
+                    })
+                    .bindPopup(`<b>${row[col.id]}</b>: ${cat}<br><small>${row[col.raw]}</small>`)
+                    .addTo(layers.metar);
+                    count++;
+                }
             }
         }
         
         layers.metar.getLayers().forEach(l => l.bringToFront());
-        console.log(`Success: Parsed ${count} stations.`);
+        console.log(`Success: Decoded & Rendered ${count} stations from Static Cache.`);
 
     } catch (e) { 
-        console.error("METAR System Error:", e);
-        alert(`Weather Error: ${e.message}\n\nThe public proxy may be overwhelmed. Please wait 10 seconds and try toggling the Weather button again.`);
+        console.error("METAR Cache Error:", e);
+        alert(`Weather Data Error: ${e.message}\n\nSince public proxies are unstable, the only remaining fix is to use a paid API or run this locally.`);
     }
     
     document.getElementById('loader').style.display = 'none';
