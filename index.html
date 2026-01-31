@@ -1137,48 +1137,50 @@ function toggleOverlay(id) {
     document.getElementById('btn-' + id).classList.toggle('active');
 }
 
+// LIVE METAR FETCH (Direct Connection for Hosted Sites)
 async function fetchLiveMetars() {
     document.getElementById('loader').style.display = 'flex';
-    const target = 'https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50';
     
-    // Strategy: Try two different proxy networks in sequence
-    const proxies = [
-        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
-    ];
+    // 1. Define URLs
+    const directUrl = 'https://aviationweather.gov/api/data/metar?format=json&bbox=-125,24,-66,50';
+    // Fallback only used if Direct fails
+    const backupUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl);
 
-    let success = false;
-    for (const proxyGen of proxies) {
-        if (success) break;
+    try {
+        let response;
+        
         try {
-            const r = await fetch(proxyGen(target));
-            if (!r.ok) continue; // If proxy 1 fails, loop to proxy 2
-            
-            const data = await r.json();
-            
-            // Render Data
-            layers.metar.clearLayers();
-            const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
-            data.forEach(m => {
-                if (m.lat && m.lon) {
-                    const col = colors[m.fltcat] || '#888';
-                    L.circleMarker([m.lat, m.lon], {
-                        radius: 5, fillColor: col, color: '#fff', weight: 1, fillOpacity: 0.9
-                    })
-                    .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb}</small>`)
-                    .addTo(layers.metar);
-                }
-            });
-            layers.metar.getLayers().forEach(l => l.bringToFront());
-            success = true; // Mark as done to exit loop
-            
-        } catch (e) { 
-            console.warn("Proxy attempt failed, trying next...", e); 
+            // ATTEMPT 1: Direct Connection (Best for GitHub Pages)
+            response = await fetch(directUrl);
+        } catch (err) {
+            console.warn("Direct connection failed (likely local file), switching to backup...");
+            // ATTEMPT 2: Backup Proxy (For local testing or strict networks)
+            response = await fetch(backupUrl);
         }
-    }
 
-    if (!success) {
-        alert("Weather Data Blocked: Your browser is preventing this local file from accessing the internet (CORS Security). \n\nTo fix this permanently, run this file using a local web server (e.g., VS Code Live Server or Python http.server).");
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+
+        const data = await response.json();
+        
+        // RENDER DATA
+        layers.metar.clearLayers();
+        const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
+        
+        data.forEach(m => {
+            if (m.lat && m.lon) {
+                const col = colors[m.fltcat] || '#888';
+                L.circleMarker([m.lat, m.lon], {
+                    radius: 5, fillColor: col, color: '#fff', weight: 1, fillOpacity: 0.9
+                })
+                .bindPopup(`<b>${m.icaoId || m.id}</b>: ${m.fltcat}<br><small>${m.rawOb}</small>`)
+                .addTo(layers.metar);
+            }
+        });
+        layers.metar.getLayers().forEach(l => l.bringToFront());
+        
+    } catch (e) { 
+        console.error("Weather Fetch Error:", e);
+        alert("Weather System Offline.\n\nCould not connect to AviationWeather.gov directly or via backup. This usually indicates the NWS API is down.");
     }
     
     document.getElementById('loader').style.display = 'none';
