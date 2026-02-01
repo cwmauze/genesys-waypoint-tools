@@ -240,7 +240,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.3 (Stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.3 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -254,15 +254,17 @@
     <div class="top-info-grid">
         <div class="instructions">
             <strong>Pre-Flight Data Prep:</strong><br>
-            1. Select a file (<strong>Genesys DAT/RTE</strong>, <strong>ForeFlight FPL</strong>, <strong>Garmin WPT</strong>, <strong>CSV/KML</strong>) or paste data.<br>
+            1. Select a file (<strong>Genesys .DAT/RTE</strong>, <strong>ForeFlight .FPL</strong>, <strong>Garmin .WPT</strong>, <strong>.CSV/.KML</strong>) or bulk paste data.<br>
             2. Parser normalizes: <strong>DD</strong> (35.1234), <strong>DDM</strong> (35° 07.40' N), <strong>DMS</strong> (35° 07' 24" N).<br>
-            3. Verify the table and export.
+            3. Verify the table and/or preview your waypoints on the map, then export to your desired format.
             
             <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(71, 141, 245, 0.2); font-size: 11px;">
-                <strong>Reference Manuals:</strong><br>
+                <strong>References:</strong><br>
                 <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank" style="font-size: 11px;">Genesys IDU Pilot's Guides</a> 
                 <span class="separator">|</span> 
                 <a href="https://support.garmin.com/en-US/?faq=3mcdU37gXi88ipwjJIxJo7" target="_blank" style="font-size: 11px;">Garmin Waypoint Import Guide</a>
+                <span class="separator">|</span> 
+                <a href="https://support.foreflight.com/hc/en-us/articles/115005085508-How-can-User-Map-Shapes-KML-or-KMZ-Shape-files-be-imported" target="_blank" style="font-size: 11px;">ForeFlight Import/export</a>
             </div>
         </div>
 
@@ -289,7 +291,7 @@
             </div>
 
             <div class="status-line">
-                <span>Est. .DAT size:</span>
+                <span>Est. file size:</span>
                 <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
                     <span id="est-size">0 KB</span>
                     <div class="status-dot ready" id="sizeDot"></div>
@@ -325,7 +327,7 @@
         <div style="flex: 1;">
             <label style="font-size: 13px; font-weight: 600;">Option A: Load file</label>
             <div class="file-upload-wrapper">
-                <button class="btn btn-upload" id="fileBtn">Choose File <span>.FPL .DAT .CSV .KML .RTE</span></button>
+                <button class="btn btn-upload" id="fileBtn">Choose file <span>.DAT, .RTE, .FPL, .CSV, .KML</span></button>
                 <input type="file" id="fileInput" accept=".fpl,.dat,.csv,.txt,.kml,.wpt,.xml,.rte" onchange="updateFileNameDisplay(); processFile();">
             </div>
         </div>
@@ -693,7 +695,7 @@ function saveSession() {
 
 function loadSession() {
     const raw = localStorage.getItem('genesys_session');
-    if (raw) { const data = JSON.parse(raw); if (data.length > 0) { populateTable(data); logAction("Session Restored"); } }
+    if (raw) { const data = JSON.parse(raw); if (data.length > 0) { populateTable(data); logAction("Session restored"); } }
 }
 
 function checkGlobalHealth() {
