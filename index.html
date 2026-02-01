@@ -62,6 +62,18 @@
             position: sticky; top: 0; z-index: 1002; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.2); border-bottom: 3px solid var(--primary);
         }
+        
+		/* UPDATED: Larger Vertical divider for the Action Bar */
+		.action-divider {
+    		width: 3px;               /* Increased thickness */
+    		height: 42px;              /* Increased height to span more of the bar */
+    		background: var(--border);
+    		margin: 0 12px;            /* Slightly more breathing room */
+    		border-radius: 4px;
+    		align-self: center;
+    		opacity: 1;                /* Full opacity for better visibility */
+    		box-shadow: 1px 0 2px rgba(0,0,0,0.2); /* Subtle depth */
+		}	
 
         /* ---------------------------------------------------------
            SECTION: DATA TABLE & ROW STYLING
@@ -206,6 +218,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
         <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
         <b>v8.4.3.1</b> - Fixed drop up menus. Fixed weather overlays.<br>
         <b>v8.4.3</b> - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.<br>
@@ -227,7 +240,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.2 (Stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.3 (Stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -319,17 +332,25 @@
         <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk paste (use with caution):</label><textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..." oninput="debouncePaste()" autocorrect="off" spellcheck="false" autocapitalize="none" autocomplete="off"></textarea></div>
     </div>
 
-    <div class="action-bar" id="actionBar">
-        <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on Map <span>STREET / SAT / SECTIONAL</span></button>
-        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);">Export user.dat <span>GENESYS IDU</span></button>
-        <button class="btn" onclick="exportToRTE()" style="background-color: #9b59b6;">Export .RTE <span>FLIGHT PLAN</span></button>
-        <button class="btn" onclick="validateAndExportFPL()" style="background-color: var(--foreflight);">Export .FPL <span>FOREFLIGHT</span></button>
-        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);">Export user.wpt <span>GARMIN GNS / GTN</span></button>
-        <button class="btn" onclick="alert('CSV Exporting...')" style="background-color: var(--dispatch);">Export CSV <span>COMPLETE FLIGHT</span></button>
-        <button class="btn" onclick="alert('KML Exporting...')" style="background-color: #6f42c1;">Export KML <span>GOOGLE EARTH / FOREFLIGHT</span></button>
-        <div style="flex-grow: 1;"></div>
-        <button class="btn btn-danger" onclick="removeAll()">CLEAR ALL DATA</button>
+<div class="action-bar" id="actionBar">
+    <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on map <span>STREET / SAT / AVIATION</span></button>
+    
+    <div class="action-divider"></div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
+        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);">Export user.dat <span>GENESYS WAYPOINTS</span></button>
+        <button class="btn" onclick="exportToRTE()" style="background-color: #9b59b6;">Export .RTE <span>GENESYS FLIGHT PLAN</span></button>
+        <button class="btn" onclick="validateAndExportFPL()" style="background-color: var(--foreflight);">Export .FPL <span>FOREFLIGHT ROUTE</span></button>
+        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);">Export user.wpt <span>GARMIN WAYPOINTS</span></button>
+        <button class="btn" onclick="alert('CSV Exporting...')" style="background-color: var(--dispatch);">Export .CSV <span>COMPLETE FLIGHT</span></button>
+        <button class="btn" onclick="alert('KML Exporting...')" style="background-color: #6f42c1;">Export .KML <span>GOOGLE EARTH / FOREFLIGHT</span></button>
     </div>
+
+    <div class="action-divider"></div>
+
+    <div style="flex-grow: 1;"></div>
+    <button class="btn btn-danger" onclick="removeAll()">CLEAR ALL DATA</button>
+</div>
     
     <table id="wpTable">
         <thead id="tableHeader">
@@ -339,9 +360,9 @@
                 <th style="width: 14%;">Name</th>
                 <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="latHeader">Latitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
                 <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="lonHeader">Longitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
-                <th style="width: 10%;">Elevation</th>
-                <th style="width: 12%;">Approach</th>
-                <th style="width: 24%;">View waypoint in</th>
+                <th style="width: 10%;">Elevation (Ft. MSL)</th>
+                <th style="width: 12%;">Approach bearing</th>
+                <th style="width: 24%;">View waypoint in:</th>
             </tr>
         </thead>
         <tbody id="table-body"></tbody>
