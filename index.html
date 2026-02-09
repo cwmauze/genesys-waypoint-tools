@@ -1505,38 +1505,114 @@ function validateAndExportGenesys() {
 }
 function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
 
-/* --- REPLACED: .RTE EXPORT HANDLER (Uses New Engine) --- */
+/* --- FIXED: EXPORT .RTE (Self-Contained Engine) --- */
 function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
 
-    // PARSE TABLE DATA FOR ENGINE
+    // 1. Sanitize Data (Ensure Numbers, not Strings)
     const wpData = rows.map(r => {
         const inputs = r.querySelectorAll('input');
+        // Prefer raw dataset (high precision), fallback to value, default to 0
+        const latRaw = inputs[2].dataset.raw || inputs[2].value;
+        const lonRaw = inputs[3].dataset.raw || inputs[3].value;
+        
         return {
-            id: inputs[0].value.trim().toUpperCase(),
-            // CRITICAL FIX: Engine expects 'desc', not 'name'
-            desc: inputs[1].value.trim().toUpperCase(), 
-            lat: parseFloat(inputs[2].dataset.raw || inputs[2].value),
-            lon: parseFloat(inputs[3].dataset.raw || inputs[3].value)
+            id: inputs[0].value.trim().toUpperCase() || "WP",
+            desc: inputs[1].value.trim().toUpperCase(), // Uses correct .desc property
+            lat: parseFloat(parseCoordinate(latRaw)) || 0.0,
+            lon: parseFloat(parseCoordinate(lonRaw)) || 0.0
         };
     });
 
     try {
-        // 1. Generate Binary Blob using the locked Engine
-        const blob = GenesysRTE.export(wpData);
-        
-        // 2. Generate Standard Filename (START-END0.RTE)
-        const fileName = GenesysRTE.getFilename(wpData);
-        
-        // 3. Trigger Download
+        // --- INTERNAL ENGINE START ---
+        // We define constants locally to prevent global variable shadowing
+        const RTE = {
+            FILE_SIZE: 11752,
+            HEADER_SIZE: 56,
+            REC_SIZE: 72,
+            NAME_BLOCK_START: 7412,
+            CRC_OFFSET: 11744,
+            TYPE_STANDARD: 0x40A00000 // Float 5.0
+        };
+
+        const buffer = new ArrayBuffer(RTE.FILE_SIZE);
+        const view = new DataView(buffer);
+        const byteView = new Uint8Array(buffer); // For CRC Calc
+
+        // A. Write Header (Count)
+        view.setUint32(0, wpData.length, true);
+
+        // B. Helper: Write String (Space Padded, Null Terminated Option)
+        const writeStr = (offset, str, maxLen, nullTerm) => {
+            const s = (str || "").toString().toUpperCase().trim().substring(0, maxLen);
+            for (let i = 0; i < maxLen; i++) {
+                view.setUint8(offset + i, (i < s.length) ? s.charCodeAt(i) : 0x20);
+            }
+            // Force null terminator if required (Critical for ID fields)
+            if (nullTerm) view.setUint8(offset + maxLen - 1, 0x00);
+        };
+
+        // C. Write Records
+        for (let i = 0; i < wpData.length; i++) {
+            const wp = wpData[i];
+            const currentRecOffset = RTE.HEADER_SIZE + (i * RTE.REC_SIZE);
+            const nextRecOffset = RTE.HEADER_SIZE + ((i + 1) * RTE.REC_SIZE);
+            const nameOffset = RTE.NAME_BLOCK_START + (i * 31); // 31 byte name size
+
+            // 1. Write Coordinates & Type (Float64 Little Endian)
+            view.setFloat64(currentRecOffset + 24, wp.lat, true);
+            view.setFloat64(currentRecOffset + 32, wp.lon, true);
+            view.setUint32(currentRecOffset + 40, RTE.TYPE_STANDARD, true);
+
+            // 2. Write ID to NEXT Record (Leg-Based Logic)
+            if (i < 101) { 
+                const idStr = wp.id ? wp.id : `WP${i+1}`;
+                writeStr(nextRecOffset + 8, idStr, 6, true);
+                writeStr(nextRecOffset + 14, "K7", 2, false); // Region Code
+            }
+
+            // 3. Write Description
+            writeStr(nameOffset, wp.desc || "", 31, true);
+        }
+
+        // D. Calculate CRC-32 (IEEE 802.3)
+        // Uses the same polynomial as your standalone file: 0xEDB88320
+        const payload = byteView.subarray(0, RTE.CRC_OFFSET);
+        const crcTable = (function() {
+            let c, t = [];
+            for(let n=0; n<256; n++){
+                c = n;
+                for(let k=0; k<8; k++) c = ((c&1) ? (0xEDB88320^(c>>>1)) : (c>>>1));
+                t[n] = c;
+            }
+            return t;
+        })();
+
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < payload.length; i++) {
+            crc = (crc >>> 8) ^ crcTable[(crc ^ payload[i]) & 0xFF];
+        }
+        crc = (crc ^ 0xFFFFFFFF) >>> 0;
+
+        // E. Write CRC
+        view.setUint32(RTE.CRC_OFFSET, crc, true);
+        // --- INTERNAL ENGINE END ---
+
+        // Generate Filename
+        const start = wpData[0].id.replace(/^K/, '').substring(0,3);
+        const end = wpData[wpData.length-1].id.replace(/^K/, '').substring(0,3);
+        const fileName = `${start}-${end}0.RTE`;
+
+        // Download
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
+        a.href = URL.createObjectURL(new Blob([buffer], { type: "application/octet-stream" }));
         a.download = fileName;
-        document.body.appendChild(a); // Append for Firefox compatibility
+        document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        
+
     } catch (e) {
         console.error(e);
         alert("Export Failed: " + e.message);
