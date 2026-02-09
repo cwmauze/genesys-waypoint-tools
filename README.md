@@ -5,16 +5,16 @@ A lightweight, browser-based mission planning utility for managing, editing, and
 ## Background & Origin
 This toolkit exists because Genesys Aerosystems apparently believes that manual data entry is a core competency for modern pilots. 
 
-Despite the relative sophistication of their EFIS hardware and their marketing-hype for "open" architecture, Genesys provides no official, manufacturer-supported method for the bulk upload of user waypoints or complex flight plans. According to their technical support, if you need to load a mission database, your "approved" options are:
+Despite their marketing-hype that they are an "open" architecture, Genesys provides no manufacturer-supported method for the bulk upload of user waypoints or complex flight plans. According to their documentation, if you need to build a waypoint database, your "approved" options are:
 
 1.  **Manual entry in the cockpit:** Spend hours twisting physical IDU knobs to enter every identifier, name, and coordinate one by one.
 2.  **The "EFIS Training Tool" method:** Use their PC-based EFIS training tool to manually click through a virtual version of the exact same menus to recreate the data.
 
 If you call their technical support line and talk to the folks there and ask if there is any other way to load waypoints other than manually one-by-one they will happily tell you "no."  Trust me, that's how this all started.
 
-In most industries, this is merely a waste of time...but in aviation—specifically in the **Rotary-Wing EMS** world where this tool was born—this is a genuine safety issue. Forcing a pilot to manually transcribe hundreds coordinates or complex multi-leg routes is an invitation for human error. In a mission-critical HEMS environment, a single fat-fingered digit in a lat/long isn't just a typo; it has potential life-or-death consequences.
+In most industries, this is merely a waste of time...but in aviation—specifically - this is a genuine safety issue. Forcing a pilot to manually transcribe hundreds coordinates or complex multi-leg routes is an invitation for human error. In the **Rotary-Wing EMS** world where this tool was born a single fat-fingered digit in a lat/long isn't just a typo; it has potential life-or-death consequences.
 
-While other vendors (e.g. Garmin) make data entry really easy (they just use a .CSV file you can generate from any spreadsheet shoftware), Genesys has left it to the end-users to build their own safety nets.  Hence - instead of playing data entry clerk with a $50k avionics suite, we decided our time was better spent reverse-engineering the binary formats that Genesys uses so we could help keep our brother/sister pilots safe.  End goal here is ensure that you can load large waypoint sets/routes into your IDU- series avionics as SAFELY, ACCURATELY, and QUICKLY as possible. Happy flying.
+While other vendors (e.g. Garmin) make data entry really easy (they just use a .CSV file you can generate from any spreadsheet shoftware), Genesys has left it to the end-users to build their own safety nets.  Hence - instead of playing data entry clerk with a $50k avionics suite, we decided our time was better spent reverse-engineering the binary formats that Genesys uses to build this tool and hopefully help keep our brother/sister pilots safe.  End goal here is ensure that you can load large waypoint sets/routes into your IDU- series avionics as SAFELY, ACCURATELY, and QUICKLY as possible. Happy flying.
 
 ## Technical Specifications
 For a deep dive into the engineering behind this tool, refer to the included technical documentation.
