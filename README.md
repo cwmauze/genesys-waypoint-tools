@@ -10,7 +10,7 @@ Despite their marketing-hype that they are built on an "open" architecture, Gene
 1.  **Manual entry in the cockpit:** Spend hours twisting physical IDU knobs to enter every identifier, name, and coordinate one by one, digit-by-digit.
 2.  **The "EFIS Training Tool" method:** Use their PC-based EFIS training tool to manually click through a virtual version of the IDU to go through the exact same process of spinning knobs...except with a keyboard and mouse.
 
-If you call their technical support line and talk to the folks there and ask if there is any other way to load waypoints other than manually one-by-one they will happily tell you "no."  Trust me, that's how this all started.
+If you call their technical support line and ask the folks there if there is any other way to load waypoints other than manually one-by-one they will happily tell you "no."  Trust me, that's how this all started.
 
 In most industries this would merely be a waste of time...but in aviation this is a genuine safety issue. Forcing a pilot to manually transcribe hundreds coordinates or complex multi-leg routes is an invitation for human error. In the **Rotary-Wing EMS** world where this tool was born a single fat-fingered digit in a lat/long isn't just a typo; it has potential life-or-death consequences.
 
