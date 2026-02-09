@@ -136,7 +136,7 @@
             font-size: 11px;
             color: #90949c;
             line-height: 1.6;
-            text-align: center;
+            text-align: left;
         }
         .disclaimer-bold {
             font-weight: bold;
@@ -218,6 +218,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.4.8</b> - .RTE file export functionality fixed.<br>
         <b>v8.4.3.5</b> - .RTE file export functionality broken...working on it.<br>
         <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
         <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
@@ -242,7 +243,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.4.7 (beta)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.4.8 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -250,7 +251,7 @@
     </div>
 
     <div style="font-size: 13px; color: #90949c; margin-bottom: 25px; line-height: 1.5; max-width: 1400px; border-left: 2px solid var(--border); padding-left: 15px;">
-        This tool serves as an interface to bulk import / edit / export user waypoint and flight plan files to/from IDU-series avionics. Other than manually hand-jamming one waypoint at a time directly into the IDU- or into their PC trainer software (which takes forever and invites the opportunity for fat-finger errors), Genesys Aerosystems (at least to my knowledge) does not provide any method to automate this process. This tool is primarily a data-converter and validator (not flight-planning software) intended to save my brother and sister pilots some time. Safe flying.
+        This tool serves as an interface to bulk import / edit / export user waypoint and flight plan files to/from IDU-series avionics. Other than manually hand-jamming one waypoint at a time directly into the IDU- or via the PC-based EFIS Training Tool software (both of which take forever and invite the opportunity for fat-finger errors), Genesys Aerosystems does not provide any method (that I know of) to automate this process. Functions below are primarily data-converters and validators (not flight-planning software) intended to help ensure that the waypoint sets loaded into your IDU- series avionics are as error-free (e.g. SAFE) as possible. Happy flying.
     </div>
     
     <div class="top-info-grid">
