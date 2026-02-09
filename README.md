@@ -5,7 +5,7 @@ A lightweight, browser-based mission planning utility for managing, editing, and
 ## Background & Origin
 This toolkit exists because Genesys Aerosystems apparently believes that manual data entry is a core competency for modern pilots. 
 
-Despite their marketing-hype that they are an "open" architecture, Genesys provides no manufacturer-supported method for the bulk upload of user waypoints or complex flight plans. According to their documentation, if you need to build a waypoint database, your "approved" options are:
+Despite their marketing-hype that they are built on an "open" architecture, Genesys provides no manufacturer-supported method for the bulk upload of user waypoints or complex flight plans. According to their documentation, if you need to build a waypoint database, your "approved" options are:
 
 1.  **Manual entry in the cockpit:** Spend hours twisting physical IDU knobs to enter every identifier, name, and coordinate one by one, digit-by-digit.
 2.  **The "EFIS Training Tool" method:** Use their PC-based EFIS training tool to manually click through a virtual version of the IDU to go through the exact same process of spinning knobs...except with a keyboard and mouse.
