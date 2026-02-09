@@ -155,22 +155,22 @@
         .cmd-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
 
         .layer-switch { display: flex; background: rgba(0,0,0,0.4); border-radius: 6px; padding: 2px; border: 1px solid var(--border); }
-.layer-btn {
-    background: transparent; 
-    border: none; 
-    color: #888; 
-    padding: 8px 12px; 
-    font-size: 11px; 
-    font-weight: 600;
-    cursor: pointer; 
-    border-radius: 4px; 
-    transition: 0.2s;
-    /* ADD THESE THREE LINES */
-    white-space: nowrap;      /* Prevents text from wrapping to a second line */
-    height: 32px;             /* Matches the height of your other action-btns */
-    display: flex;            /* Ensures vertical centering */
-    align-items: center;      /* Centers text vertically */
-}
+        .layer-btn {
+            background: transparent; 
+            border: none; 
+            color: #888; 
+            padding: 8px 12px; 
+            font-size: 11px; 
+            font-weight: 600;
+            cursor: pointer; 
+            border-radius: 4px; 
+            transition: 0.2s;
+            /* ADD THESE THREE LINES */
+            white-space: nowrap;      /* Prevents text from wrapping to a second line */
+            height: 32px;             /* Matches the height of your other action-btns */
+            display: flex;            /* Ensures vertical centering */
+            align-items: center;      /* Centers text vertically */
+        }
         .layer-btn.active { background: var(--primary); color: white; }
 
         .popover-menu {
@@ -218,6 +218,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
         <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
         <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
         <b>v8.4.3.1</b> - Fixed drop up menus. Fixed weather overlays.<br>
@@ -240,7 +241,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.3 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.4 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -428,7 +429,7 @@
 <script>
 /* --- APP RULES: Defines the rigid structures required for avionics binary files --- */
 const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016; 
-let leafletMap = null, markerLayer = null, routeLayer = null, labelLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
+let leafletMap = null, markerLayer = null, routeLayer = null, labelLayer = null, idLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
 let lastLoadedExtension = '', coordDisplayMode = 0; 
 let layers = {}; // Global layers object for the new UI
 let activeBase = 'dark', activeChart = null; // Global state for the new UI
@@ -755,6 +756,17 @@ function processFile() {
             else if (ext === 'fpl') parseFPL(e.target.result); 
             else if (ext === 'kml' || ext === 'xml') parseKML(e.target.result);
             else smartParse(e.target.result);
+            
+            // UPDATED LOGIC (v8.4.3.4 Patch): 
+            // Determine if this is a Route file (.RTE / .FPL)
+            const isRouteFile = (ext === 'rte' || ext === 'fpl');
+            
+            // Force Toggle States based on file type
+            // If it is a route file, turn ON legs and route line.
+            // If it is a .DAT/CSV/etc, turn OFF legs and route line.
+            setOverlayState('legs', isRouteFile);
+            setOverlayState('route', isRouteFile);
+
             logAction("Loaded " + file.name);
         };
         (ext === 'dat' || ext === 'rte') ? reader.readAsArrayBuffer(file) : reader.readAsText(file);
@@ -1051,7 +1063,7 @@ function calculateLegData(p1, p2) {
     return `${dist} nm | ${Math.round(brg).toString().padStart(3, '0')}°`;
 }
 
-/* --- UPDATED MAP LOGIC (INTEGRATED v8.4.3) --- */
+/* --- UPDATED MAP LOGIC (INTEGRATED v8.4.3.4) --- */
 
 function showMap() {
     document.getElementById('mapOverlay').style.display = 'block';
@@ -1081,6 +1093,7 @@ function showMap() {
         markerLayer = L.layerGroup().addTo(leafletMap); 
         routeLayer = L.polyline([], {color: 'magenta', weight: 4}).addTo(leafletMap); 
         labelLayer = L.layerGroup();
+        idLayer = L.layerGroup().addTo(leafletMap); // IDs (Added by default, toggled separately)
 
         // 4. Bind Click-Away Listener
         leafletMap.on('click', () => document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible')));
@@ -1219,16 +1232,34 @@ function toggleWX(type) {
 // OVERLAY TOGGLE (IDs, Route, Legs)
 function toggleOverlay(id) {
     let layer;
-    if (id === 'ids') layer = markerLayer;
+    if (id === 'ids') layer = idLayer; // UPDATED: Targets Text Labels only
     if (id === 'route') layer = routeLayer;
     if (id === 'legs') layer = labelLayer;
 
-    if (leafletMap.hasLayer(layer)) leafletMap.removeLayer(layer); 
-    else { 
-        layer.addTo(leafletMap);
-        if (id === 'legs') { toggleRouteLayer(); labelLayer.getLayers().forEach(l => l.bringToFront()); }
+    if (leafletMap && layer) {
+        if (leafletMap.hasLayer(layer)) leafletMap.removeLayer(layer); 
+        else { 
+            layer.addTo(leafletMap);
+            // If showing legs, bring labels to front
+            if (id === 'legs') { labelLayer.getLayers().forEach(l => l.bringToFront()); }
+        }
     }
-    document.getElementById('btn-' + id).classList.toggle('active');
+    // Toggle Button Class
+    const btn = document.getElementById('btn-' + id);
+    if(btn) btn.classList.toggle('active');
+}
+
+// NEW FUNCTION: Force a specific state for an overlay (Used by processFile)
+function setOverlayState(id, shouldBeActive) {
+    const btn = document.getElementById('btn-' + id);
+    if (!btn) return;
+    
+    const isActive = btn.classList.contains('active');
+    
+    // Only toggle if the current state doesn't match the desired state
+    if (isActive !== shouldBeActive) {
+        toggleOverlay(id);
+    }
 }
 
 // LIVE METAR FETCH (TGFTP Legacy Server Strategy)
@@ -1350,9 +1381,14 @@ function toggleMaximize() { document.getElementById('mapOverlay').classList.togg
 function fit() { if(routeLayer && routeLayer.getLatLngs().length > 0) leafletMap.fitBounds(routeLayer.getBounds(), {padding: [50, 50]}); }
 
 function toggleRouteLayer(isInitial = false) {
-    if (!leafletMap || !routeLayer || !markerLayer || !labelLayer) return;
+    if (!leafletMap || !routeLayer || !markerLayer || !labelLayer || !idLayer) return;
     const coords = []; let bounds = []; 
-    markerLayer.clearLayers(); routeLayer.setLatLngs([]); labelLayer.clearLayers();
+    
+    // Clear all layer groups
+    markerLayer.clearLayers(); 
+    routeLayer.setLatLngs([]); 
+    labelLayer.clearLayers();
+    idLayer.clearLayers();
     
     tbody.querySelectorAll('tr').forEach((r, idx) => {
         const inps = r.querySelectorAll('input');
@@ -1360,10 +1396,29 @@ function toggleRouteLayer(isInitial = false) {
             const lat = parseFloat(parseCoordinate(inps[2].dataset.raw || inps[2].value)), lon = parseFloat(parseCoordinate(inps[3].dataset.raw || inps[3].value));
             if (!isNaN(lat) && lat !== 0) {
                 const pos = [lat, lon]; coords.push(pos); bounds.push(pos);
+                
+                // 1. Popup Content (Shared)
                 let popupContent = `<b>${inps[0].value || 'WP'}</b>`;
                 if (inps[1].value) popupContent += `<br><span style="font-size:10px;opacity:0.8;">${inps[1].value}</span>`;
-                const marker = L.marker(pos, {icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})}).addTo(markerLayer).bindPopup(popupContent);
-                marker.bindTooltip(inps[0].value || `WP${idx+1}`, { permanent: true, direction: 'top', offset: [0, -10] });
+                
+                // 2. Create the VISUAL MARKER (Blue Circle) - Always added to markerLayer
+                L.marker(pos, {
+                    icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})
+                }).addTo(markerLayer).bindPopup(popupContent);
+
+                // 3. Create the TEXT LABEL (Tooltip) - Added to idLayer (Toggled by Button)
+                // We use an invisible marker to anchor the tooltip
+                const textAnchor = L.marker(pos, {
+                    icon: L.divIcon({className: 'hidden-anchor', html: '', iconSize: [0, 0]}), 
+                    interactive: false 
+                }).addTo(idLayer);
+                
+                textAnchor.bindTooltip(inps[0].value || `WP${idx+1}`, { 
+                    permanent: true, 
+                    direction: 'top', 
+                    offset: [0, -10],
+                    className: 'wp-label-tooltip' // Optional class for styling
+                });
             }
         }
     });
