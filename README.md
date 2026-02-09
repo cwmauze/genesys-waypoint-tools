@@ -31,6 +31,24 @@ For a deep dive into the engineering behind this tool, refer to the included tec
 * **Cross-Verification:** One-click links to Google Maps, Google Earth, and ForeFlight Web to verify coordinates before they ever reach the aircraft.
 
 ## Version History
+v8.4.4.8 - .RTE file export functionality fixed.
+v8.4.3.5 - .RTE file export functionality broken...working on it.
+v8.4.3.4 - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.
+v8.4.3.3 - Minor visual updates to action bar.
+v8.4.3.2 - Added dark basemap as default selection.
+v8.4.3.1 - Fixed drop up menus. Fixed weather overlays.
+v8.4.3 - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.
+v8.4.2.1 - STABLE: Restored Input fields. Fixed Footer layout. Restored new Purpose text. Added Year to AIRAC.
+v8.4.2 - UI UPDATE: Added back rolling sections to timestamp. Updated waypoint tally totals.
+v8.4.1 - UI UPDATE: Added Dual-Time (Local/Zulu), explicit AIRAC Cycle display, and real-time database verification timestamp.
+v8.4 - STABLE RELEASE: Integrated forensic binary engine for .RTE flight plans (11,752 byte container).
+v8.3.1.8 - FIXED: Rewrote .RTE Exporter with "Golden Master" logic (Flags, Leg Shifts, and CRC-32).
+v8.3.1.7 - LOGIC PATCH: Smart disambiguation for duplicate IDs. 3-letter inputs prioritize NAVAIDs; 4-letter (K/P) prioritize Airports.
+v8.3.1.6 - SELF-HEALING: Added automated database corruption check and manual reset option.
+v8.3.1.5 - CRITICAL FIX: Forced schema upgrade to v2 to enable search indexing.
+v8.3.1.4 - DB Architecture Upgrade (v2): Enabled duplicate identifiers (Airport/NAVAID separation) and smart prioritization.
+v8.3.1.3 - UI Logic Fix: Identifier field now preserves user input (e.g., K-prefixes) and re-search forces row update on edit.
+v8.3 - STABLE RELEASE: Transitioned out of beta. Locked functional baseline.
 * **v8.0.1:** **Mission Planning Release.** Consolidated build. Added native support for Genesys Flight Plan (`.rte`) import/export. Implemented "Phantom Record" architecture and strict CRC-32 logic (Offset 4768) for full avionics interoperability.
 * **v7.6.5:** Strict Garmin `user.wpt` alignment (Headerless, 4 columns, fixed precision).
 * **v6.12:** Expanded instruction block with explicit coordinate format definitions; restored hardware truncation alerts.
