@@ -218,7 +218,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
-        <b>v8.4.3.5</b> - Fixed broken .RTE file export functionality.<br>
+        <b>v8.4.3.5</b> - .RTE file export functionality broken...working on it.<br>
         <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
         <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
         <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
@@ -242,7 +242,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.9 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.4.1 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1506,11 +1506,11 @@ function validateAndExportGenesys() {
 function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
 
 /* --- FIXED: EXPORT .RTE (Self-Contained Engine) --- */
+/* --- FIXED: EXPORT .RTE (Restored "Golden Master" Logic) --- */
 function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
 
-    // 1. Sanitize Data
     const wpData = rows.map(r => {
         const inputs = r.querySelectorAll('input');
         const latRaw = inputs[2].dataset.raw || inputs[2].value;
@@ -1534,26 +1534,24 @@ function exportToRTE() {
             TYPE_STANDARD: 0x40A00000 
         };
 
+        // 1. Initialize Buffer with ZEROS (0x00)
+        // This matches the "Working" script. Do NOT pre-fill with spaces.
         const buffer = new ArrayBuffer(RTE.FILE_SIZE);
         const view = new DataView(buffer);
         const byteView = new Uint8Array(buffer);
 
-        // --- NEW FIX: PRE-FILL NAME BLOCK WITH SPACES (0x20) ---
-        // The avionics expects the entire text area (unused slots included) to be spaces.
-        // We fill from NAME_BLOCK_START (7412) up to CRC_OFFSET (11744).
-        for (let k = RTE.NAME_BLOCK_START; k < RTE.CRC_OFFSET; k++) {
-            byteView[k] = 0x20; 
-        }
-
         // A. Write Header
         view.setUint32(0, wpData.length, true);
 
-        // B. Helper: Write String
+        // B. Helper: Write String (Matches Google Apps Script Logic)
         const writeStr = (offset, str, maxLen, nullTerm) => {
             const s = (str || "").toString().toUpperCase().trim().substring(0, maxLen);
+            // 1. Write Characters
             for (let i = 0; i < maxLen; i++) {
                 view.setUint8(offset + i, (i < s.length) ? s.charCodeAt(i) : 0x20);
             }
+            // 2. Force Null Terminator (If true)
+            // This overwrites the last byte with 0x00, matching the GAS logic.
             if (nullTerm) view.setUint8(offset + maxLen - 1, 0x00);
         };
 
@@ -1564,7 +1562,7 @@ function exportToRTE() {
             const nextRecOffset = RTE.HEADER_SIZE + ((i + 1) * RTE.REC_SIZE);
             const nameOffset = RTE.NAME_BLOCK_START + (i * 31);
 
-            // 1. Write Coordinates
+            // 1. Write Coordinates & Type
             view.setFloat64(currentRecOffset + 24, wp.lat, true);
             view.setFloat64(currentRecOffset + 32, wp.lon, true);
             view.setUint32(currentRecOffset + 40, RTE.TYPE_STANDARD, true);
@@ -1572,18 +1570,19 @@ function exportToRTE() {
             // 2. Write ID to NEXT Record
             if (i < 101) { 
                 const idStr = wp.id ? wp.id : `WP${i+1}`;
-                writeStr(nextRecOffset + 8, idStr, 6, false); // Keep 'false' (Space Padding)
+                // REVERTED: Changed 'false' back to 'true' (Null Terminated)
+                writeStr(nextRecOffset + 8, idStr, 6, true); 
+                
+                // REGION: 'K7' is kept as 'false' (Space Padded) per GAS logic
                 writeStr(nextRecOffset + 14, "K7", 2, false);
             }
 
             // 3. Write Description
-            // Note: Since we pre-filled with spaces, we just overwrite the active part.
-            // We use 'false' for nullTerm because the pre-fill handles the "rest of the line".
-            // However, sticking to the "Known Good" file logic: NO nulls at all in the Name Block.
-            writeStr(nameOffset, wp.desc || "", 31, false); 
+            // REVERTED: Changed 'false' back to 'true' (Null Terminated)
+            writeStr(nameOffset, wp.desc || "", 31, true); 
         }
 
-        // D. Calculate CRC-32
+        // D. Calculate CRC-32 (IEEE 802.3)
         const payload = byteView.subarray(0, RTE.CRC_OFFSET);
         const crcTable = (function() {
             let c, t = [];
