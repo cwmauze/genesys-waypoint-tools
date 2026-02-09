@@ -218,6 +218,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.4.3.5</b> - Fixed broken .RTE file export functionality.<br>
         <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
         <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
         <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
@@ -241,7 +242,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.4 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.5 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1509,22 +1510,38 @@ function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
 
-    const wpData = rows.map(r => ({
-        id: r.querySelectorAll('input')[0].value,
-        desc: r.querySelectorAll('input')[1].value,
-        lat: parseCoordinate(r.querySelectorAll('input')[2].dataset.raw || r.querySelectorAll('input')[2].value),
-        lon: parseCoordinate(r.querySelectorAll('input')[3].dataset.raw || r.querySelectorAll('input')[3].value)
-    }));
+    // PARSE TABLE DATA FOR ENGINE
+    const wpData = rows.map(r => {
+        const inputs = r.querySelectorAll('input');
+        return {
+            id: inputs[0].value.trim().toUpperCase(),
+            // CRITICAL FIX: Engine expects 'desc', not 'name'
+            desc: inputs[1].value.trim().toUpperCase(), 
+            lat: parseFloat(inputs[2].dataset.raw || inputs[2].value),
+            lon: parseFloat(inputs[3].dataset.raw || inputs[3].value)
+        };
+    });
 
-    const blob = GenesysRTE.export(wpData);
-    const fileName = GenesysRTE.getFilename(wpData);
-    
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = fileName;
-    a.click();
+    try {
+        // 1. Generate Binary Blob using the locked Engine
+        const blob = GenesysRTE.export(wpData);
+        
+        // 2. Generate Standard Filename (START-END0.RTE)
+        const fileName = GenesysRTE.getFilename(wpData);
+        
+        // 3. Trigger Download
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        document.body.appendChild(a); // Append for Firefox compatibility
+        a.click();
+        document.body.removeChild(a);
+        
+    } catch (e) {
+        console.error(e);
+        alert("Export Failed: " + e.message);
+    }
 }
-
 async function validateAndExportFPL() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 waypoints required.");
