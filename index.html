@@ -242,7 +242,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.8 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.9 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1510,47 +1510,50 @@ function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
 
-    // 1. Sanitize Data (Ensure Numbers, not Strings)
+    // 1. Sanitize Data
     const wpData = rows.map(r => {
         const inputs = r.querySelectorAll('input');
-        // Prefer raw dataset (high precision), fallback to value, default to 0
         const latRaw = inputs[2].dataset.raw || inputs[2].value;
         const lonRaw = inputs[3].dataset.raw || inputs[3].value;
         
         return {
             id: inputs[0].value.trim().toUpperCase() || "WP",
-            desc: inputs[1].value.trim().toUpperCase(), // Uses correct .desc property
+            desc: inputs[1].value.trim().toUpperCase(),
             lat: parseFloat(parseCoordinate(latRaw)) || 0.0,
             lon: parseFloat(parseCoordinate(lonRaw)) || 0.0
         };
     });
 
     try {
-        // --- INTERNAL ENGINE START ---
-        // We define constants locally to prevent global variable shadowing
         const RTE = {
             FILE_SIZE: 11752,
             HEADER_SIZE: 56,
             REC_SIZE: 72,
             NAME_BLOCK_START: 7412,
             CRC_OFFSET: 11744,
-            TYPE_STANDARD: 0x40A00000 // Float 5.0
+            TYPE_STANDARD: 0x40A00000 
         };
 
         const buffer = new ArrayBuffer(RTE.FILE_SIZE);
         const view = new DataView(buffer);
-        const byteView = new Uint8Array(buffer); // For CRC Calc
+        const byteView = new Uint8Array(buffer);
 
-        // A. Write Header (Count)
+        // --- NEW FIX: PRE-FILL NAME BLOCK WITH SPACES (0x20) ---
+        // The avionics expects the entire text area (unused slots included) to be spaces.
+        // We fill from NAME_BLOCK_START (7412) up to CRC_OFFSET (11744).
+        for (let k = RTE.NAME_BLOCK_START; k < RTE.CRC_OFFSET; k++) {
+            byteView[k] = 0x20; 
+        }
+
+        // A. Write Header
         view.setUint32(0, wpData.length, true);
 
-        // B. Helper: Write String (Space Padded, Null Terminated Option)
+        // B. Helper: Write String
         const writeStr = (offset, str, maxLen, nullTerm) => {
             const s = (str || "").toString().toUpperCase().trim().substring(0, maxLen);
             for (let i = 0; i < maxLen; i++) {
                 view.setUint8(offset + i, (i < s.length) ? s.charCodeAt(i) : 0x20);
             }
-            // Force null terminator if required (Critical for ID fields)
             if (nullTerm) view.setUint8(offset + maxLen - 1, 0x00);
         };
 
@@ -1559,28 +1562,28 @@ function exportToRTE() {
             const wp = wpData[i];
             const currentRecOffset = RTE.HEADER_SIZE + (i * RTE.REC_SIZE);
             const nextRecOffset = RTE.HEADER_SIZE + ((i + 1) * RTE.REC_SIZE);
-            const nameOffset = RTE.NAME_BLOCK_START + (i * 31); // 31 byte name size
+            const nameOffset = RTE.NAME_BLOCK_START + (i * 31);
 
-            // 1. Write Coordinates & Type (Float64 Little Endian)
+            // 1. Write Coordinates
             view.setFloat64(currentRecOffset + 24, wp.lat, true);
             view.setFloat64(currentRecOffset + 32, wp.lon, true);
             view.setUint32(currentRecOffset + 40, RTE.TYPE_STANDARD, true);
 
-			// 2. Write ID to NEXT Record (Leg-Based Logic)
+            // 2. Write ID to NEXT Record
             if (i < 101) { 
                 const idStr = wp.id ? wp.id : `WP${i+1}`;
-                // FIX: Changed nullTerm to FALSE. Spec requires space-padding for IDs.
-                writeStr(nextRecOffset + 8, idStr, 6, false); 
-                writeStr(nextRecOffset + 14, "K7", 2, false); // Region Code
+                writeStr(nextRecOffset + 8, idStr, 6, false); // Keep 'false' (Space Padding)
+                writeStr(nextRecOffset + 14, "K7", 2, false);
             }
 
-			// 3. Write Description
-			// FIX: Changed to FALSE. The avionics expects pure space-padding, no nulls.
-				writeStr(nameOffset, wp.desc || "", 31, false);
+            // 3. Write Description
+            // Note: Since we pre-filled with spaces, we just overwrite the active part.
+            // We use 'false' for nullTerm because the pre-fill handles the "rest of the line".
+            // However, sticking to the "Known Good" file logic: NO nulls at all in the Name Block.
+            writeStr(nameOffset, wp.desc || "", 31, false); 
         }
 
-        // D. Calculate CRC-32 (IEEE 802.3)
-        // Uses the same polynomial as your standalone file: 0xEDB88320
+        // D. Calculate CRC-32
         const payload = byteView.subarray(0, RTE.CRC_OFFSET);
         const crcTable = (function() {
             let c, t = [];
@@ -1600,14 +1603,12 @@ function exportToRTE() {
 
         // E. Write CRC
         view.setUint32(RTE.CRC_OFFSET, crc, true);
-        // --- INTERNAL ENGINE END ---
 
-        // Generate Filename
+        // Download Logic
         const start = wpData[0].id.replace(/^K/, '').substring(0,3);
         const end = wpData[wpData.length-1].id.replace(/^K/, '').substring(0,3);
         const fileName = `${start}-${end}0.RTE`;
 
-        // Download
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([buffer], { type: "application/octet-stream" }));
         a.download = fileName;
