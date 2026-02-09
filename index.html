@@ -242,7 +242,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.7 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.3.8 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1574,8 +1574,9 @@ function exportToRTE() {
                 writeStr(nextRecOffset + 14, "K7", 2, false); // Region Code
             }
 
-            // 3. Write Description
-            writeStr(nameOffset, wp.desc || "", 31, true);
+			// 3. Write Description
+			// FIX: Changed to FALSE. The avionics expects pure space-padding, no nulls.
+				writeStr(nameOffset, wp.desc || "", 31, false);
         }
 
         // D. Calculate CRC-32 (IEEE 802.3)
