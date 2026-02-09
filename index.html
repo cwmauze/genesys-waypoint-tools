@@ -242,7 +242,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.4.1 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.4.7 (beta)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1505,8 +1505,7 @@ function validateAndExportGenesys() {
 }
 function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
 
-/* --- FIXED: EXPORT .RTE (Self-Contained Engine) --- */
-/* --- FIXED: EXPORT .RTE (Restored "Golden Master" Logic) --- */
+/* --- FIXED: EXPORT .RTE (Stable Logic + Record 0 ID Fix) --- */
 function exportToRTE() {
     const rows = [...tbody.querySelectorAll('tr')];
     if (rows.length < 2) return alert("Min 2 WPs required for Route.");
@@ -1535,7 +1534,7 @@ function exportToRTE() {
         };
 
         // 1. Initialize Buffer with ZEROS (0x00)
-        // This matches the "Working" script. Do NOT pre-fill with spaces.
+        // Matches Google Apps Script. 
         const buffer = new ArrayBuffer(RTE.FILE_SIZE);
         const view = new DataView(buffer);
         const byteView = new Uint8Array(buffer);
@@ -1543,15 +1542,21 @@ function exportToRTE() {
         // A. Write Header
         view.setUint32(0, wpData.length, true);
 
-        // B. Helper: Write String (Matches Google Apps Script Logic)
+        // B. Helper: Write String (Matches GAS Logic Exactly)
         const writeStr = (offset, str, maxLen, nullTerm) => {
             const s = (str || "").toString().toUpperCase().trim().substring(0, maxLen);
+            let written = 0;
             // 1. Write Characters
-            for (let i = 0; i < maxLen; i++) {
-                view.setUint8(offset + i, (i < s.length) ? s.charCodeAt(i) : 0x20);
+            for (let i = 0; i < s.length; i++) {
+                view.setUint8(offset + i, s.charCodeAt(i));
+                written++;
             }
-            // 2. Force Null Terminator (If true)
-            // This overwrites the last byte with 0x00, matching the GAS logic.
+            // 2. Pad remainder with SPACES (0x20)
+            while (written < maxLen) {
+                view.setUint8(offset + written, 0x20);
+                written++;
+            }
+            // 3. Force Null Terminator (If true)
             if (nullTerm) view.setUint8(offset + maxLen - 1, 0x00);
         };
 
@@ -1567,19 +1572,23 @@ function exportToRTE() {
             view.setFloat64(currentRecOffset + 32, wp.lon, true);
             view.setUint32(currentRecOffset + 40, RTE.TYPE_STANDARD, true);
 
-            // 2. Write ID to NEXT Record
+            // 2. Write ID to NEXT Record (Standard Leg Logic)
             if (i < 101) { 
                 const idStr = wp.id ? wp.id : `WP${i+1}`;
-                // REVERTED: Changed 'false' back to 'true' (Null Terminated)
-                writeStr(nextRecOffset + 8, idStr, 6, true); 
-                
-                // REGION: 'K7' is kept as 'false' (Space Padded) per GAS logic
-                writeStr(nextRecOffset + 14, "K7", 2, false);
+                writeStr(nextRecOffset + 8, idStr, 6, true); // Null Terminated
+                writeStr(nextRecOffset + 14, "K7", 2, false); // Region
             }
 
-            // 3. Write Description
-            // REVERTED: Changed 'false' back to 'true' (Null Terminated)
-            writeStr(nameOffset, wp.desc || "", 31, true); 
+            // 3. CRITICAL FIX: Write ID to CURRENT Record (Record 0)
+            // The avionics likely reads this slot for the Route Name/Start Display.
+            if (i === 0) {
+                 const idStr = wp.id ? wp.id : `WP${i+1}`;
+                 writeStr(currentRecOffset + 8, idStr, 6, true);
+                 writeStr(currentRecOffset + 14, "K7", 2, false);
+            }
+
+            // 4. Write Description
+            writeStr(nameOffset, wp.desc || "", 31, true); // Null Terminated
         }
 
         // D. Calculate CRC-32 (IEEE 802.3)
@@ -1600,10 +1609,9 @@ function exportToRTE() {
         }
         crc = (crc ^ 0xFFFFFFFF) >>> 0;
 
-        // E. Write CRC
         view.setUint32(RTE.CRC_OFFSET, crc, true);
 
-        // Download Logic
+        // Download
         const start = wpData[0].id.replace(/^K/, '').substring(0,3);
         const end = wpData[wpData.length-1].id.replace(/^K/, '').substring(0,3);
         const fileName = `${start}-${end}0.RTE`;
