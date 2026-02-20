@@ -3,89 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KML Obstacle Overlay Generator</title>
-    
+    <title>Genesys IDU Waypoint and Route Tools</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
+        /* ---------------------------------------------------------
+           SECTION: THEME & COLOR VARIABLES
+           --------------------------------------------------------- */
         :root {
             --bg: #18191a; --card: #242526; --text: #e4e6eb; --border: #3e4042;
             --primary: #478df5; --secondary: #3a3b3c; --danger: #fb6161;
-            --success: #28a745; --earth: #2d81ff; --link: #a3c7ff; --dispatch: #f39c12;
+            --success: #28a745; --garmin: #007cc3; --dispatch: #f39c12;
+            --earth: #2d81ff; --link: #a3c7ff; --foreflight: #007aff;
             --header-sep: rgba(255, 255, 255, 0.1);
+            --stripe: rgba(255, 255, 255, 0.03); 
             --glass: rgba(30, 31, 32, 0.98);
-            --section-bg: rgba(0,0,0,0.15);
-            --input-bg: #3a3b3c;
         }
         [data-theme="light"] {
             --bg: #f0f2f5; --card: #ffffff; --text: #1c1e21; --border: #dadde1;
             --primary: #1a73e8; --secondary: #e4e6eb; --danger: #fa3e3e;
-            --link: #1a73e8; --dispatch: #f39c12;
+            --link: #1a73e8;
             --header-sep: rgba(0, 0, 0, 0.1);
+            --stripe: rgba(0, 0, 0, 0.02);
             --glass: rgba(255, 255, 255, 0.95);
-            --section-bg: #f7f8fa; 
-            --input-bg: #ffffff; 
         }
 
+        /* ---------------------------------------------------------
+           SECTION: CORE LAYOUT
+           --------------------------------------------------------- */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: var(--bg); color: var(--text); transition: background 0.3s; }
-        .container { max-width: 700px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); position: relative; }
-        
-        /* Headers & Links */
-        .version-subtitle { font-size: 11px; color: var(--link); margin-top: 4px; margin-bottom: 20px; display: inline-block; font-weight: normal; cursor: pointer; text-decoration: underline; }
-        .project-link { font-size: 11px; color: #90949c; margin-left: 15px; text-decoration: underline; cursor: pointer; transition: color 0.2s; }
-        .project-link:hover { color: var(--link); }
+        .container { max-width: 1500px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
+        .version-subtitle { font-size: 11px; color: #90949c; margin-top: 4px; display: inline-block; font-weight: normal; cursor: pointer; text-decoration: underline; }
+        .contact-link, .project-link { font-size: 11px; color: #90949c; margin-left: 15px; text-decoration: underline; }
         .header-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
-        h2 { margin: 0; color: var(--primary); line-height: 1; font-size: 22px; }
+        h2 { margin: 0; color: var(--primary); line-height: 1; }
         
-        /* Status Card */
-        .session-status-card { background: var(--secondary); padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; margin-bottom: 20px; }
-        .status-line { margin-top: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .top-info-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); font-size: 14px; line-height: 1.5; height: 100%; box-sizing: border-box; }
+        
+        /* UPDATED SESSION CARD STYLE */
+        .session-status-card { background: var(--secondary); padding: 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; height: 100%; box-sizing: border-box; }
+        
+        .status-line { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; display: inline-block; flex-shrink: 0; }
         .status-dot.loading { background: var(--dispatch); animation: dbPulse 1s infinite; }
         .status-dot.ready { background: var(--success); }
         .status-dot.error { background: var(--danger); }
+        .status-dot.danger-pulse { background: var(--danger); animation: errorPulse 0.8s infinite; }
+        @keyframes errorPulse { 0% { box-shadow: 0 0 0 0px rgba(251, 97, 97, 0.7); } 100% { box-shadow: 0 0 0 8px rgba(251, 97, 97, 0); } }
         @keyframes dbPulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        /* UI Grouping & Grid */
-        .section-card { border: 1px solid var(--border); border-radius: 8px; padding: 15px 20px; margin-bottom: 15px; background: var(--section-bg); }
-        .section-title { font-weight: bold; color: var(--primary); margin-bottom: 12px; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 500px) { .grid-2 { grid-template-columns: 1fr; gap: 10px; } }
-
-        label { display: block; font-weight: bold; color: var(--text); font-size: 12px; opacity: 0.9; margin-bottom: 4px; }
-        input[type="number"], input[type="text"] { width: 100%; padding: 8px 10px; background: var(--input-bg); color: var(--text); border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-size: 13px; }
-        input[type="range"] { flex: 1; margin: 0 10px; cursor: pointer; }
+        /* ---------------------------------------------------------
+           SECTION: ACTION BAR BUTTONS
+           --------------------------------------------------------- */
+        .action-bar { 
+            background: var(--card) !important; padding: 15px; border-radius: 8px; margin-bottom: 20px; 
+            display: none; flex-wrap: wrap; gap: 10px; align-items: center;
+            position: sticky; top: 0; z-index: 1002; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2); border-bottom: 3px solid var(--primary);
+        }
         
-        /* Compact Inline Controls */
-        .inline-control { display: flex; align-items: center; justify-content: space-between; background: var(--input-bg); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 8px; min-height: 28px;}
-        .inline-control label { margin: 0; font-weight: normal; }
-        .inline-control input[type="color"] { width: 35px; height: 24px; padding: 0; border: 1px solid var(--border); background: none; cursor: pointer; border-radius: 4px; flex-shrink: 0; }
-        
-        .checkbox-group { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-        .checkbox-group input { width: auto; margin: 0; cursor: pointer; transform: scale(1.1); }
-        .checkbox-group label { margin: 0; font-weight: normal; cursor: pointer; }
-        
-        #facilityName { font-size: 11px; font-weight: bold; margin-top: 6px; min-height: 14px; text-transform: uppercase; }
+		/* UPDATED: Larger Vertical divider for the Action Bar */
+		.action-divider {
+    		width: 3px;               /* Increased thickness */
+    		height: 42px;              /* Increased height to span more of the bar */
+    		background: var(--border);
+    		margin: 0 12px;            /* Slightly more breathing room */
+    		border-radius: 4px;
+    		align-self: center;
+    		opacity: 1;                /* Full opacity for better visibility */
+    		box-shadow: 1px 0 2px rgba(0,0,0,0.2); /* Subtle depth */
+		}	
 
-        .btn-group { display: flex; gap: 15px; margin-top: 25px; }
-        button.action { flex: 1; padding: 14px; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button.action span { display: block; font-size: 9px; font-weight: normal; opacity: 0.8; margin-top: 3px; }
-        .btn-preview { background-color: var(--earth); }
-        .btn-preview:hover { background-color: #1a60d4; }
-        .btn-download { background-color: var(--success); display: flex; align-items: center; justify-content: center; font-size: 15px;}
-        .btn-download:hover { background-color: #218838; }
+        /* ---------------------------------------------------------
+           SECTION: DATA TABLE & ROW STYLING
+           --------------------------------------------------------- */
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; border: 1px solid var(--border); }
+        th, td { border: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: middle; position: relative; }
+        thead th { background-color: var(--secondary) !important; font-weight: 600; font-size: 11px; user-select: none; line-height: 1.2; position: sticky; z-index: 1001; padding-top: 6px; padding-bottom: 6px; border-right: 1px solid var(--header-sep); }
+        .clickable-header { cursor: pointer; text-decoration: underline dotted; }
+        .clickable-header:hover { background-color: var(--primary) !important; color: white; }
+
+        #wpTable tbody tr:nth-child(even) { background-color: var(--stripe); }
+
+        input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; background: var(--card); color: var(--text); box-sizing: border-box; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: all 0.2s ease; text-align: center; color: white; display: inline-block; vertical-align: middle; }
+        .btn span { display: block; font-size: 10px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
+        .btn-secondary { background: var(--secondary); color: var(--text); }
+        .btn-danger { background: var(--danger); }
+        a { color: var(--link); text-decoration: none; font-weight: 500; font-size: 10px; }
+        .separator { margin: 0 8px; color: #888; font-weight: bold; pointer-events: none; }
         
-        /* Modal Styles */
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); }
-        .modal-content { background-color: var(--card); margin: 15% auto; padding: 25px; border: 1px solid var(--border); width: 80%; max-width: 500px; border-radius: 10px; color: var(--text); position: relative; }
-        .close { position: absolute; top: 10px; right: 15px; color: var(--text); font-size: 28px; font-weight: bold; cursor: pointer; opacity: 0.6;}
-        .close:hover { opacity: 1; }
+        .delete-btn { color: var(--danger); cursor: pointer; font-weight: bold; font-size: 14px; opacity: 0.4; transition: opacity 0.2s; text-align: center; user-select: none; }
+        .delete-btn:hover { opacity: 1; }
+        .insert-btn { color: var(--primary); cursor: pointer; font-weight: bold; font-size: 14px; opacity: 0.4; transition: opacity 0.2s; text-align: center; user-select: none; }
+        .insert-btn:hover { opacity: 1; }
+        .drag-handle { cursor: grab; text-align: center; color: var(--primary); font-size: 16px; user-select: none; opacity: 0.7; }
+        tr.dragging { opacity: 0.2; }
+        tr.drag-over { border-top: 3px solid var(--primary) !important; background: rgba(71, 141, 245, 0.05); }
+        .row-number { text-align: center; font-family: monospace; opacity: 0.7; font-size: 11px; }
 
-        /* Footer */
-        .app-footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 11px; color: #90949c; line-height: 1.6; text-align: left; }
-        .disclaimer-bold { font-weight: bold; color: var(--text); }
-
-        /* Map UI */
+        /* --- UPDATED MAP CONTAINER (Replaces Old Overlay) --- */
         #mapOverlay { 
             display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; 
             background: var(--card); z-index: 3000; border: 2px solid var(--primary); 
@@ -94,1001 +112,1575 @@
         #mapOverlay.maximized { width: 100vw; height: 100vh; top: 0; left: 0; border: none; border-radius: 0; }
         #map { width: 100%; height: 100%; background: #222; }
 
+        .numbered-marker { background: var(--primary); border: 2px solid white; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 20px; font-size: 10px; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 5999; }
+        #versionHistory { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); border: 2px solid var(--primary); padding: 25px; border-radius: 12px; font-size: 12px; z-index: 6000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text); line-height: 1.6; }
+
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+        .file-upload-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .btn-upload { background: var(--secondary); color: var(--text); border: 1px solid var(--border); width: 100%; display: block; margin: 0; }
+        .btn-upload:hover { background: var(--primary); color: white; }
+
+        .autocomplete-list { position: absolute; top: 100%; left: 0; width: 100%; background: var(--secondary); border: 1px solid var(--primary); border-radius: 4px; z-index: 2000; box-shadow: 0 4px 8px rgba(0,0,0,0.3); max-height: 150px; overflow-y: auto; display: none; }
+        .autocomplete-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 11px; }
+        .autocomplete-item:hover { background: var(--primary) !important; color: white; }
+
+        .leg-label { background: rgba(0, 0, 0, 0.75); border: 1px solid var(--primary); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; white-space: nowrap; pointer-events: none; }
+
+        /* FOOTER STYLE */
+        .app-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: #90949c;
+            line-height: 1.6;
+            text-align: left;
+        }
+        .disclaimer-bold {
+            font-weight: bold;
+            color: var(--text);
+        }
+
+        /* --- NEW MAP COMMAND BAR --- */
         .map-command-bar {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             width: auto; background: var(--glass); border: 1px solid var(--border); border-radius: 12px;
             padding: 10px 20px; display: flex; align-items: center; gap: 15px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px); z-index: 9999 !important;
         }
+
         .cmd-group { display: flex; align-items: center; gap: 8px; position: relative; }
         .cmd-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
         .layer-switch { display: flex; background: rgba(0,0,0,0.4); border-radius: 6px; padding: 2px; border: 1px solid var(--border); }
-        .layer-btn { background: transparent; border: none; color: #888; padding: 8px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 4px; transition: 0.2s; white-space: nowrap; height: 32px; display: flex; align-items: center; }
+        .layer-btn {
+            background: transparent; 
+            border: none; 
+            color: #888; 
+            padding: 8px 12px; 
+            font-size: 11px; 
+            font-weight: 600;
+            cursor: pointer; 
+            border-radius: 4px; 
+            transition: 0.2s;
+            /* ADD THESE THREE LINES */
+            white-space: nowrap;      /* Prevents text from wrapping to a second line */
+            height: 32px;             /* Matches the height of your other action-btns */
+            display: flex;            /* Ensures vertical centering */
+            align-items: center;      /* Centers text vertically */
+        }
         .layer-btn.active { background: var(--primary); color: white; }
+
+        .popover-menu {
+            position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%);
+            background: #1c1c1e; border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+            display: none; flex-direction: column; gap: 6px; box-shadow: 0 5px 25px rgba(0,0,0,0.8);
+            min-width: 180px; z-index: 10000 !important;
+        }
+        .popover-menu.visible { display: flex; }
+        .popover-label { font-size: 9px; color: #888; text-transform: uppercase; padding: 0 5px; font-weight: bold; margin-bottom: 2px; }
+
+        .toggle-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text);
+            padding: 8px 14px; font-size: 11px; border-radius: 20px; cursor: pointer; display: flex;
+            align-items: center; gap: 8px; transition: 0.2s; white-space: nowrap; height: 32px; justify-content: center;
+        }
+        .popover-menu .toggle-btn { width: 100%; border-radius: 8px; justify-content: flex-start; height: auto; padding: 10px 14px; }
+        .toggle-btn.active { background: rgba(71, 141, 245, 0.2); border-color: var(--primary); color: var(--primary); }
+        .indicator { width: 6px; height: 6px; border-radius: 50%; background: #444; transition: 0.3s; }
+        .toggle-btn.active .indicator { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+        
+        .weather-active { border-color: #2d81ff !important; color: #2d81ff !important; background: rgba(45, 129, 255, 0.15) !important; }
+        .weather-active .indicator { background: #2d81ff; box-shadow: 0 0 6px #2d81ff; }
+
         .action-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; height: 32px; display: flex; align-items: center; gap: 6px; }
         .close-btn { background: var(--danger); border-color: var(--danger); color: white; }
-        #loader { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 8px 15px; border-radius: 20px; font-size: 11px; display: none; align-items: center; gap: 10px; z-index: 10001; border: 1px solid var(--border); }
+
+        #loader {
+            position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white;
+            padding: 8px 15px; border-radius: 20px; font-size: 11px; display: none; align-items: center;
+            gap: 10px; z-index: 10001; border: 1px solid var(--border);
+        }
+        .spinner { width: 12px; height: 12px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body data-theme="dark">
 
-<div id="loader">FETCHING DATA...</div>
+<body onload="startClock(); initStickyObserver(); initAviationDB(); loadSession();">
+
+<div id="loader"><span class="spinner"></span> FETCHING DATA...</div>
+
+<div class="modal-overlay" id="historyOverlay" onclick="toggleVersionHistory()">
+    <div id="versionHistory" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
+            <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
+        </div>
+        <b>v8.4.4.8</b> - .RTE file export functionality fixed.<br>
+        <b>v8.4.3.5</b> - .RTE file export functionality broken...working on it.<br>
+        <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
+        <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
+        <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
+        <b>v8.4.3.1</b> - Fixed drop up menus. Fixed weather overlays.<br>
+        <b>v8.4.3</b> - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.<br>
+        <b>v8.4.2.1</b> - STABLE: Restored Input fields. Fixed Footer layout. Restored new Purpose text. Added Year to AIRAC.<br>
+        <b>v8.4.2</b> - UI UPDATE: Added back rolling sections to timestamp. Updated waypoint tally totals.<br>
+        <b>v8.4.1</b> - UI UPDATE: Added Dual-Time (Local/Zulu), explicit AIRAC Cycle display, and real-time database verification timestamp.<br>
+        <b>v8.4</b> - STABLE RELEASE: Integrated forensic binary engine for .RTE flight plans (11,752 byte container).<br>
+        <b>v8.3.1.8</b> - FIXED: Rewrote .RTE Exporter with "Golden Master" logic (Flags, Leg Shifts, and CRC-32).<br>
+        <b>v8.3.1.7</b> - LOGIC PATCH: Smart disambiguation for duplicate IDs. 3-letter inputs prioritize NAVAIDs; 4-letter (K/P) prioritize Airports.<br>
+        <b>v8.3.1.6</b> - SELF-HEALING: Added automated database corruption check and manual reset option.<br>
+        <b>v8.3.1.5</b> - CRITICAL FIX: Forced schema upgrade to v2 to enable search indexing.<br>
+        <b>v8.3.1.4</b> - DB Architecture Upgrade (v2): Enabled duplicate identifiers (Airport/NAVAID separation) and smart prioritization.<br>
+        <b>v8.3.1.3</b> - UI Logic Fix: Identifier field now preserves user input (e.g., K-prefixes) and re-search forces row update on edit.<br>
+        <b>v8.3</b> - STABLE RELEASE: Transitioned out of beta. Locked functional baseline.<br>
+    </div>
+</div>
 
 <div class="container">
     <div class="header-row">
         <div>
-            <h2>KML Obstacle Overlay Generator</h2>
-            <span class="version-subtitle" onclick="openVersionModal()">v2.1.0 - Click for version history</span>
-            <a href="https://github.com/cwmauze/aviation-obstacle-kml-tool" target="_blank" class="project-link">GitHub Project Home</a>
+            <h2>Genesys IDU Waypoint and Route Tools</h2>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.4.8 (stable)</span>
+            <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
+            <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
-        <button class="action-btn" onclick="toggleTheme()" id="themeBtn" style="font-size: 16px; padding: 6px 10px; height: auto;">☀️</button>
+        <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn" style="font-size: 18px; padding: 6px 12px;">☀️</button>
     </div>
 
     <div style="font-size: 13px; color: #90949c; margin-bottom: 25px; line-height: 1.5; max-width: 1400px; border-left: 2px solid var(--border); padding-left: 15px;">
-        This tool generates custom KML obstacle overlays for use in ForeFlight, Google Earth, or any EFB/mapping platform that supports KML imports. The backend automatically synchronizes with the FAA's latest 56-Day Digital Obstacle File (DOF) and 28-Day NASR databases. Simply set your centerpoint via FAA Identifier or Lat/Lon, define your search radius and altitude thresholds, customize your visual styling, and export your overlay.
+        This tool serves as an interface to bulk import / edit / export user waypoint and flight plan files to/from IDU-series avionics. Other than manually hand-jamming one waypoint at a time directly into the IDU- or via the PC-based EFIS Training Tool software (both of which take forever and invite the opportunity for fat-finger errors), Genesys Aerosystems does not provide any method (that I know of) to automate this process. Functions below are primarily data-converters and validators (not flight-planning software) intended to help ensure that the waypoint sets loaded into your IDU- series avionics are as error-free (e.g. SAFE) as possible. Happy flying.
     </div>
-
-    <div class="session-status-card">
-        <div style="font-weight: bold; color: var(--primary); text-transform: uppercase; font-size: 10px;">Database Status</div>
-        <div class="status-line">
-            <span>Obstacle data (DOF):</span>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span id="dof-status">Checking...</span>
-                <div class="status-dot loading" id="dof-dot"></div>
-            </div>
-        </div>
-        <div class="status-line">
-            <span>Airport/Heliport data (NASR):</span>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span id="apt-status">Checking...</span>
-                <div class="status-dot loading" id="apt-dot"></div>
-            </div>
-        </div>
-        <div class="status-line">
-            <span>NOTAM Scrape:</span>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span id="notam-status">Checking...</span>
-                <div class="status-dot loading" id="notam-dot"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section-card">
-        <div class="section-title">1. Search Area Selection</div>
-        <div style="display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap;">
-            <label style="display: flex; align-items: center; gap: 5px; font-weight: normal; cursor: pointer; margin: 0;">
-                <input type="radio" name="centerMode" id="faaMode" value="faa" checked onchange="toggleCenterInput()"> Route / Multiple Identifiers
-            </label>
-            <label style="display: flex; align-items: center; gap: 5px; font-weight: normal; cursor: pointer; margin: 0;">
-                <input type="radio" name="centerMode" id="coordMode" value="coord" onchange="toggleCenterInput()"> Custom Lat/Lon
-            </label>
-            <label style="display: flex; align-items: center; gap: 5px; font-weight: normal; cursor: pointer; margin: 0;">
-                <input type="radio" name="centerMode" id="stateMode" value="state" onchange="toggleCenterInput()"> Entire State(s)
-            </label>
-        </div>
-
-        <div id="faaInputGroup">
-            <input type="text" id="faaId" placeholder="e.g. KRDU, W40, NC91" style="text-transform: uppercase;" oninput="updateFacilityName()">
-            <div style="font-size: 10px; color: #90949c; margin-top: 5px;">Enter a single ID (e.g. KABQ) or a comma-separated list for a multi-point search.</div>
-            <div id="facilityName"></div>
-        </div>
-
-        <div id="coordInputGroup" class="grid-2" style="display: none;">
-            <div>
-                <label>Latitude (decimal)</label>
-                <input type="number" id="lat" step="any" value="36.0066" placeholder="e.g. 36.0066" oninput="triggerCounterUpdate()">
-            </div>
-            <div>
-                <label>Longitude (decimal)</label>
-                <input type="number" id="lon" step="any" value="-78.9391" placeholder="e.g. -78.9391" oninput="triggerCounterUpdate()">
-            </div>
-        </div>
-
-        <div id="stateInputGroup" style="display: none;">
-            <input type="text" id="stateIds" placeholder="e.g. NC, VA, SC" style="text-transform: uppercase;" oninput="triggerCounterUpdate()">
-            <div style="font-size: 10px; color: #90949c; margin-top: 5px;">Enter comma-separated 2-letter state codes.</div>
-        </div>
-    </div>
-
-    <div class="section-card">
-        <div class="section-title">
-            <span>2. Filtering & Coverage</span>
-            <span id="liveCounter" style="color: var(--text); font-weight: normal; text-transform: none;">0 Obstacles</span>
-        </div>
-        <div class="grid-2">
-            <div id="radiusWrap">
-                <label>Search radius (NM)</label>
-                <input type="number" id="radiusNM" value="150" oninput="triggerCounterUpdate()">
-            </div>
-            <div>
-                <label>Minimum obstacle height (ft AGL)</label>
-                <input type="number" id="minAGL" value="1000" oninput="checkAGLWarning()">
-                <div id="aglWarning" style="display: none; color: var(--danger); font-size: 10px; margin-top: 5px; font-weight: bold;">FAA database excludes obstacles under 200 AGL.</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section-card">
-        <div class="section-title">3. Overlay Options</div>
-        <div class="grid-2">
+    
+    <div class="top-info-grid">
+        <div class="instructions">
+            <strong>Pre-Flight Data Prep:</strong><br>
+            1. Select a file (<strong>Genesys .DAT/RTE</strong>, <strong>ForeFlight .FPL</strong>, <strong>Garmin .WPT</strong>, <strong>.CSV/.KML</strong>) or bulk paste data.<br>
+            2. Parser normalizes: <strong>DD</strong> (35.1234), <strong>DDM</strong> (35° 07.40' N), <strong>DMS</strong> (35° 07' 24" N).<br>
+            3. Verify the table and/or preview your waypoints on the map, then export to your desired format.
             
-            <div id="boundaryWrap">
-                <div style="display: flex; align-items: center; height: 26px; margin-bottom: 8px;">
-                    <div class="checkbox-group" style="padding: 0; margin: 0;">
-                        <input type="checkbox" id="enableBoundary" checked>
-                        <label for="enableBoundary" style="font-weight: bold; color: var(--primary); font-size: 12px;">Search Boundary Ring(s)</label>
-                    </div>
-                </div>
-                
-                <div class="inline-control">
-                    <label>Line color</label>
-                    <input type="color" id="boundaryColor" value="#ff0000">
-                </div>
-                <div class="inline-control">
-                    <label>Line thickness (px)</label>
-                    <input type="number" id="boundaryWidth" value="2" min="1" max="10" style="width: 60px; height: 26px; padding: 2px 6px; margin: 0; background: var(--card);">
-                </div>
+            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(71, 141, 245, 0.2); font-size: 11px;">
+                <strong>References:</strong><br>
+                <a href="https://www.moog.com/products/avionics/aircraft-avionics/pilot-guides.html" target="_blank" style="font-size: 11px;">Genesys IDU Pilot's Guides</a> 
+                <span class="separator">|</span> 
+                <a href="https://support.garmin.com/en-US/?faq=3mcdU37gXi88ipwjJIxJo7" target="_blank" style="font-size: 11px;">Garmin Waypoint Import Guide</a>
+                <span class="separator">|</span> 
+                <a href="https://support.foreflight.com/hc/en-us/articles/115005085508-How-can-User-Map-Shapes-KML-or-KMZ-Shape-files-be-imported" target="_blank" style="font-size: 11px;">ForeFlight Import/export</a>
+            </div>
+        </div>
+
+        <div class="session-status-card">
+            <div style="font-weight: bold; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; font-size: 10px; display: flex; justify-content: space-between;">
+                <span>Session status</span>
+                <span id="local-clock">00:00:00 L | 00:00:00 Z</span>
             </div>
             
-            <div>
-                <div style="display: flex; align-items: center; height: 26px; margin-bottom: 8px;">
-                    <div style="font-weight: bold; color: var(--primary); font-size: 12px; margin-left: 2px;">Obstacle Rings</div>
-                </div>
-
-                <div class="inline-control">
-                    <label>Ring radius (NM)</label>
-                    <input type="number" id="ringNM" value="2.0" step="0.1" style="width: 60px; height: 26px; padding: 2px 6px; margin: 0; background: var(--card);">
-                </div>
-                
-                <div class="inline-control">
-                    <label>Line color</label>
-                    <input type="color" id="outlineColor" value="#ff0000">
-                </div>
-                <div class="inline-control">
-                    <label>Line thickness (px)</label>
-                    <input type="number" id="ringWidth" value="2" min="1" max="10" style="width: 60px; height: 26px; padding: 2px 6px; margin: 0; background: var(--card);">
-                </div>
-                
-                <div class="checkbox-group" style="margin-top: 10px; margin-bottom: 4px;">
-                    <input type="checkbox" id="enableFill" checked onchange="toggleOpacitySlider()">
-                    <label for="enableFill">Enable polygon fill shading</label>
-                </div>
-                <div class="inline-control" id="opacityGroup">
-                    <label style="display:flex; align-items:center; width:100%;">
-                        <span style="font-size: 11px; min-width: 50px;">Opac (<span id="opacityValue" style="color:var(--primary);">50%</span>)</span>
-                        <input type="range" id="fillOpacity" min="1" max="100" value="50" oninput="updateOpacityLabel()">
-                    </label>
-                    <input type="color" id="fillColor" value="#ff0000">
+            <div class="status-line">
+                <span>Last action:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="last-action">Ready</span>
+                    <div style="width:8px;"></div>
                 </div>
             </div>
 
-        </div>
-    </div>
-
-    <div class="section-card">
-        <div class="section-title">
-            <span>4. Unlit Obstacles</span>
-            <span id="notamLiveCounter" style="color: var(--text); font-weight: normal; text-transform: none;">0 Active Outages</span>
-        </div>
-        <div class="grid-2">
-            <div>
-                <div style="display: flex; align-items: center; height: 26px; margin-bottom: 8px;">
-                    <div class="checkbox-group" style="padding: 0; margin: 0;">
-                        <input type="checkbox" id="notamInclude" checked onchange="triggerCounterUpdate()">
-                        <label for="notamInclude" style="font-weight: bold; color: var(--dispatch); font-size: 12px;">Include Active Light Outage NOTAMs</label>
-                    </div>
-                </div>
-                <div class="inline-control">
-                    <label>Ring radius (NM)</label>
-                    <input type="number" id="notamRingNM" value="3.0" step="0.1" style="width: 60px; height: 26px; padding: 2px 6px; margin: 0; background: var(--card);">
-                </div>
-                <div class="inline-control">
-                    <label>Minimum height (ft AGL)</label>
-                    <input type="number" id="notamMinAGL" value="200" style="width: 60px; height: 26px; padding: 2px 6px; margin: 0; background: var(--card);" oninput="triggerCounterUpdate()">
+            <div class="status-line">
+                <span>Total waypoints:</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="wp-composition">0</span>
+                    <div style="width:8px;"></div>
                 </div>
             </div>
-            <div>
-                <div style="display: flex; align-items: center; height: 26px; margin-bottom: 8px;">
-                    <div style="font-weight: bold; color: var(--dispatch); font-size: 12px; margin-left: 2px;">Hazard Styling</div>
+
+            <div class="status-line">
+                <span>Est. file size:</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="est-size">0 KB</span>
+                    <div class="status-dot ready" id="sizeDot"></div>
                 </div>
-                <div class="inline-control">
-                    <label>Line color</label>
-                    <input type="color" id="notamOutlineColor" value="#ff9900">
+            </div>
+
+            <div class="status-line">
+                <span>System status:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="sys-status">Ready</span>
+                    <div class="status-dot ready" id="sysDot"></div>
                 </div>
-                <div class="inline-control">
-                    <label>Line thickness (px)</label>
-                    <input type="number" id="notamRingWidth" value="3" min="1" max="10" style="width: 60px; height: 26px; padding: 2px 6px; margin: 0; background: var(--card);">
+            </div>
+
+            <div class="status-line">
+                <span>AIRAC cycle:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="airac-display" style="font-weight:bold;">Loading...</span>
+                    <div style="width:8px;"></div>
                 </div>
-                <div class="checkbox-group" style="margin-top: 10px; margin-bottom: 4px;">
-                    <input type="checkbox" id="notamEnableFill" checked onchange="toggleNotamOpacitySlider()">
-                    <label for="notamEnableFill">Enable polygon fill shading</label>
-                </div>
-                <div class="inline-control" id="notamOpacityGroup">
-                    <label style="display:flex; align-items:center; width:100%;">
-                        <span style="font-size: 11px; min-width: 50px;">Opac (<span id="notamOpacityValue" style="color:var(--primary);">60%</span>)</span>
-                        <input type="range" id="notamFillOpacity" min="1" max="100" value="60" oninput="updateNotamOpacityLabel()">
-                    </label>
-                    <input type="color" id="notamFillColor" value="#ff9900">
+            </div>
+
+            <div class="status-line">
+                <span>Database check:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span onclick="resetDatabase()" style="cursor:pointer; font-size:14px; line-height:1; color:var(--link); margin-right:5px;" title="Force Full Reset">↻</span>
+                    <span id="dbText" style="opacity:0.8; font-size:10px;">Checking...</span>
+                    <div class="status-dot" id="dbDot"></div>
                 </div>
             </div>
         </div>
+    </div> <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        <div style="flex: 1;">
+            <label style="font-size: 13px; font-weight: 600;">Option A: Load file</label>
+            <div class="file-upload-wrapper">
+                <button class="btn btn-upload" id="fileBtn">Choose file <span>.DAT, .RTE, .FPL, .CSV, .KML</span></button>
+                <input type="file" id="fileInput" accept=".fpl,.dat,.csv,.txt,.kml,.wpt,.xml,.rte" onchange="updateFileNameDisplay(); processFile();">
+            </div>
+        </div>
+        <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk paste (use with caution):</label><textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..." oninput="debouncePaste()" autocorrect="off" spellcheck="false" autocapitalize="none" autocomplete="off"></textarea></div>
     </div>
 
-    <div class="btn-group">
-        <button class="action btn-preview" onclick="showMapPreview()">Preview .KML <span>STREET / SAT / AVIATION</span></button>
-        <button class="action btn-download" onclick="generateKML()">Download .KML</button>
+<div class="action-bar" id="actionBar">
+    <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on map <span>STREET / SAT / AVIATION</span></button>
+    
+    <div class="action-divider"></div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
+        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);">Export user.dat <span>GENESYS WAYPOINTS</span></button>
+        <button class="btn" onclick="exportToRTE()" style="background-color: #9b59b6;">Export .RTE <span>GENESYS FLIGHT PLAN</span></button>
+        <button class="btn" onclick="validateAndExportFPL()" style="background-color: var(--foreflight);">Export .FPL <span>FOREFLIGHT ROUTE</span></button>
+        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);">Export user.wpt <span>GARMIN WAYPOINTS</span></button>
+        <button class="btn" onclick="alert('CSV Exporting...')" style="background-color: var(--dispatch);">Export .CSV <span>COMPLETE FLIGHT</span></button>
+        <button class="btn" onclick="alert('KML Exporting...')" style="background-color: #6f42c1;">Export .KML <span>GOOGLE EARTH / FOREFLIGHT</span></button>
     </div>
+
+    <div class="action-divider"></div>
+
+    <div style="flex-grow: 1;"></div>
+    <button class="btn btn-danger" onclick="removeAll()">CLEAR ALL DATA</button>
+</div>
+    
+    <table id="wpTable">
+        <thead id="tableHeader">
+            <tr id="headerRow">
+                <th style="width: 2%;"></th> <th style="width: 2%;"></th> <th style="width: 2%;"></th> <th style="width: 3%; text-align: center;">#</th>
+                <th style="width: 10%;">Identifier</th>
+                <th style="width: 14%;">Name</th>
+                <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="latHeader">Latitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
+                <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="lonHeader">Longitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
+                <th style="width: 10%;">Elevation (Ft. MSL)</th>
+                <th style="width: 12%;">Approach bearing</th>
+                <th style="width: 24%;">View waypoint in:</th>
+            </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+    </table>
+
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button class="btn btn-secondary" onclick="addRows(1)">+ Add 1 row</button>
+        <button class="btn btn-secondary" onclick="addRows(5)">+ Add 5 rows</button>
+        <button class="btn btn-secondary" onclick="addRows(10)">+ Add 10 rows</button>
+    </div>
+
+    <div id="mapOverlay">
+        <div class="map-command-bar">
+            <div class="cmd-group">
+                <div class="layer-switch">
+              		<button class="layer-btn active" id="b-street" onclick="toggleMapStyle()">Map (Dark)</button>
+                    <button class="layer-btn" id="b-sat" onclick="setBaseView('sat')">Sat</button>
+                    <button class="layer-btn" id="chartMainBtn" onclick="toggleMenu('chartMenu')">Chart</button>
+                </div>
+            </div>
+            <div class="cmd-divider"></div>
+            <div class="cmd-group">
+                <button class="toggle-btn active" id="btn-ids" onclick="toggleOverlay('ids')"><div class="indicator"></div> IDs</button>
+                <button class="toggle-btn active" id="btn-route" onclick="toggleOverlay('route')"><div class="indicator"></div> Route</button>
+                <button class="toggle-btn" id="btn-legs" onclick="toggleOverlay('legs')"><div class="indicator"></div> Legs</button>
+                <div class="cmd-divider"></div>
+                <button class="toggle-btn" id="wxMainBtn" onclick="toggleMenu('wxMenu')"><div class="indicator"></div> Weather</button>
+            </div>
+            <div class="cmd-group" style="margin-left:auto;">
+                <button class="action-btn" onclick="fit()" title="Fit Route">Fit Route</button>
+                <button class="action-btn" onclick="toggleMaximize()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                </button>
+                <button class="action-btn close-btn" onclick="hideMap()">Close</button>
+            </div>
+        </div>
+
+        <div class="popover-menu" id="chartMenu">
+            <span class="popover-label">FAA Charts</span>
+            <button class="toggle-btn" id="c-tac" onclick="setChart('tac')"><div class="indicator"></div> Terminal Area Chart</button>
+            <button class="toggle-btn" id="c-hi" onclick="setChart('hi')"><div class="indicator"></div> IFR High enroute</button>
+            <button class="toggle-btn" id="c-lo" onclick="setChart('lo')"><div class="indicator"></div> IFR Low enroute</button>
+            <button class="toggle-btn" id="c-vfr" onclick="setChart('vfr')"><div class="indicator"></div> VFR sectional</button>
+        </div>
+
+        <div class="popover-menu" id="wxMenu">
+            <span class="popover-label">Live Overlays</span>
+            <button class="toggle-btn" id="w-nex" onclick="toggleWX('nexrad')"><div class="indicator"></div> NEXRAD</button>
+            <button class="toggle-btn" id="w-sat" onclick="toggleWX('ir_sat')"><div class="indicator"></div> IR satellite</button>
+            <button class="toggle-btn" id="w-met" onclick="toggleWX('metar')"><div class="indicator"></div> METAR</button>
+        </div>
+
+        <div id="map"></div>
+    </div> 
 
     <footer class="app-footer">
-        <span class="disclaimer-bold">DISCLAIMER:</span> This tool is for utility purposes only and is not a substitute for a qualified pilot or common sense. While the database is meticulously parsed, cumulus granite and steel towers remain strictly unforgiving. Generating a colorful KML file does not grant you invincibility. Cross-reference official charts and don't hit stuff.
+        <span class="disclaimer-bold">DISCLAIMER:</span> This tool is for utility purposes only and does not replace a qualified pilot, a current navigation database, or basic common sense. While the math is solid, gravity is a constant that doesn't care about your copy-paste errors. Verify all coordinates and identifiers against official FAA NASR data before use.
     </footer>
-</div>
 
-<div id="versionModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeVersionModal()">&times;</span>
-    <h3 style="margin-top: 0; color: var(--primary);">Version History</h3>
-    <ul style="padding-left: 20px; line-height: 1.6; font-size: 13px;">
-    	<li><strong>v2.1.0:</strong> Integrated official FAA NMS-API. Up-scoped NOTAM logic to process nationwide datasets with geospatial cross-referencing for state-mode bounding. Removed experimental tags.</li>
-        <li><strong>v2.0.4 (Beta):</strong> Updated NOTAM Javascript regex parsing logic to correctly handle decimal formats and unblock the altitude filter.</li>
-        <li><strong>v2.0.3 (Beta):</strong> Complete AGL Parsing overhaul to catch messy FAA NOTAM formats. Implemented independent live counter for NOTAM outages in Section 4.</li>
-        <li><strong>v2.0.2 (Beta):</strong> Added dedicated altitude filter for unlit NOTAM obstacles.</li>
-        <li><strong>v2.0.1 (Beta):</strong> Added Experimental Section 4 for scraping and rendering active FAA NOTAM light outages.</li>
-        <li><strong>v1.9.3:</strong> Added Real-Time Obstacle Counter, background RAM pre-loading, US State/Territory code validation guardrails, and unified ring radius styling options.</li>
-        <li><strong>v1.9:</strong> Major Update. Added advanced Multi-Radii search support and entire State/Territory filtering mode for comprehensive route planning. Map preview logic updated to dynamically bound to generated coordinates.</li>
-    </ul>
-  </div>
-</div>
-
-<div id="mapOverlay">
-    <div class="map-command-bar">
-        <div class="cmd-group">
-            <div class="layer-switch">
-                <button class="layer-btn active" id="b-street" onclick="setBaseView('street')">Map Light</button>
-                <button class="layer-btn" id="b-dark" onclick="setBaseView('dark')">Map Dark</button>
-                <button class="layer-btn" id="b-sat" onclick="setBaseView('sat')">Satellite</button>
-                <button class="layer-btn" id="b-vfr" onclick="setBaseView('vfr')">VFR Sectional</button>
-            </div>
-        </div>
-        
-        <div class="cmd-divider"></div>
-        
-        <div class="cmd-group" style="margin-left:auto;">
-            <button class="action-btn" onclick="toggleMaximize()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
-            </button>
-            <button class="action-btn close-btn" onclick="hideMap()">Close</button>
-        </div>
-    </div>
-    <div id="map"></div>
-</div> 
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+</div> <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// --- GLOBAL DB INITIALIZATION ---
-let globalAirports = {};
-let globalObstacles = null; // Memory Cache 
-let globalNotams = []; // NOTAM Cache
-let dbVersion = new Date().getTime(); // Cache Buster
+/* --- APP RULES: Defines the rigid structures required for avionics binary files --- */
+const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016; 
+let leafletMap = null, markerLayer = null, routeLayer = null, labelLayer = null, idLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
+let lastLoadedExtension = '', coordDisplayMode = 0; 
+let layers = {}; // Global layers object for the new UI
+let activeBase = 'dark', activeChart = null; // Global state for the new UI
 
-const validStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC', 'PR', 'VI', 'GU', 'AS', 'MP'];
+const FAA_DB_NAME = "FAANavData", FAA_STORE_NAME = "waypoints", tbody = document.getElementById('table-body');
 
-window.onload = async () => {
-    try {
-        const metaRes = await fetch('metadata.json?nocache=' + new Date().getTime());
-        const meta = await metaRes.json();
-        
-        dbVersion = encodeURIComponent((meta.dof_date || '') + (meta.obs_count || ''));
-        
-        const obsCount = meta.obs_count || 0;
-        document.getElementById('dof-status').innerText = `Verified (Eff. ${meta.dof_date} | ${obsCount} Obstacles)`;
-        document.getElementById('dof-dot').className = obsCount > 0 ? 'status-dot ready' : 'status-dot error';
-        
-        const aptRes = await fetch(`airports.json?v=${dbVersion}`);
-        globalAirports = await aptRes.json();
-        
-        const aptCount = meta.apt_count || Object.keys(globalAirports).length;
-        const aptDate = meta.apt_date || meta.dof_date || "Unknown";
-        document.getElementById('apt-status').innerText = `Verified (Eff. ${aptDate} | ${aptCount} airports/heliports found)`;
-        document.getElementById('apt-dot').className = aptCount > 0 ? 'status-dot ready' : 'status-dot error';
-        
-        getObstacles().then(() => triggerCounterUpdate());
+/* ------------------------------------------------------------------------------------------------
+   GENESYS IDU .RTE FILE ENGINE (v8.4 STABLE)
+   Forensic binary structure for S-TEC/Genesys Avionics
+------------------------------------------------------------------------------------------------ */
+const RTE_CONSTANTS = {
+    FILE_SIZE: 11752,
+    HEADER_SIZE: 56,
+    REC_SIZE: 72,
+    NAME_SIZE: 31,
+    NAME_BLOCK_START: 7412,
+    CRC_OFFSET: 11744,
+    TYPE_STANDARD: 0x40A00000 // Float 5.0
+};
 
-        try {
-            const notamRes = await fetch(`notams.json?v=${dbVersion}`);
-            globalNotams = await notamRes.json();
-            document.getElementById('notam-status').innerText = `Loaded (${globalNotams.length} Active Outages)`;
-            document.getElementById('notam-dot').className = globalNotams.length > 0 ? 'status-dot ready' : 'status-dot error';
-        } catch(e) {
-            console.warn("NOTAM fetch failed or file missing.");
-            document.getElementById('notam-status').innerText = "Offline / No Data";
-            document.getElementById('notam-dot').className = 'status-dot error';
+// --- CRC32 LOOKUP TABLE (IEEE 802.3) ---
+const CRC_TABLE = (function() {
+    let c, table = [];
+    for(let n = 0; n < 256; n++){
+        c = n;
+        for(let k = 0; k < 8; k++){
+            c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+        }
+        table[n] = c;
+    }
+    return table;
+})();
+
+const GenesysRTE = {
+    import: function(buffer) {
+        const view = new DataView(buffer);
+        const waypoints = [];
+        const count = view.getUint32(0, true);
+
+        for (let i = 0; i < count; i++) {
+            const currentRecOffset = RTE_CONSTANTS.HEADER_SIZE + (i * RTE_CONSTANTS.REC_SIZE);
+            const nextRecOffset = RTE_CONSTANTS.HEADER_SIZE + ((i + 1) * RTE_CONSTANTS.REC_SIZE);
+            const nameOffset = RTE_CONSTANTS.NAME_BLOCK_START + (i * RTE_CONSTANTS.NAME_SIZE);
+            const lat = view.getFloat64(currentRecOffset + 24, true);
+            const lon = view.getFloat64(currentRecOffset + 32, true);
+
+            // Read ID (Stored in the NEXT record's slot)
+            let id = this._readString(view, nextRecOffset + 8, 6);
+            if (!id) id = `WP${i + 1}`;
+            const desc = this._readString(view, nameOffset, RTE_CONSTANTS.NAME_SIZE);
+
+            waypoints.push({ id: id, lat: lat, lon: lon, desc: desc });
+        }
+        return waypoints;
+    },
+
+    export: function(waypoints) {
+        const buffer = new ArrayBuffer(RTE_CONSTANTS.FILE_SIZE);
+        const view = new DataView(buffer);
+        const byteView = new Uint8Array(buffer);
+
+        view.setUint32(0, waypoints.length, true);
+
+        for (let i = 0; i < waypoints.length; i++) {
+            const wp = waypoints[i];
+            const currentRecOffset = RTE_CONSTANTS.HEADER_SIZE + (i * RTE_CONSTANTS.REC_SIZE);
+            const nextRecOffset = RTE_CONSTANTS.HEADER_SIZE + ((i + 1) * RTE_CONSTANTS.REC_SIZE);
+            const nameOffset = RTE_CONSTANTS.NAME_BLOCK_START + (i * RTE_CONSTANTS.NAME_SIZE);
+
+            view.setFloat64(currentRecOffset + 24, Number(wp.lat), true);
+            view.setFloat64(currentRecOffset + 32, Number(wp.lon), true);
+            view.setUint32(currentRecOffset + 40, RTE_CONSTANTS.TYPE_STANDARD, true);
+
+            if (i < 101) { 
+                const idStr = wp.id ? wp.id : `WP${i+1}`;
+                this._writeString(view, nextRecOffset + 8, idStr, 6, true);
+                this._writeString(view, nextRecOffset + 14, "K7", 2, false); 
+            }
+            this._writeString(view, nameOffset, wp.desc || "", RTE_CONSTANTS.NAME_SIZE, true);
         }
 
-    } catch(e) {
-        console.error("Database fetch failed: ", e);
-        document.getElementById('dof-status').innerText = "Offline (Local mode only)";
-        document.getElementById('dof-dot').className = 'status-dot error';
-        document.getElementById('apt-status').innerText = "Offline";
-        document.getElementById('apt-dot').className = 'status-dot error';
-        document.getElementById('coordMode').click(); 
+        const payload = byteView.subarray(0, RTE_CONSTANTS.CRC_OFFSET);
+        const checksum = this._calculateCRC32(payload);
+        view.setUint32(RTE_CONSTANTS.CRC_OFFSET, checksum, true);
+
+        return new Blob([buffer], { type: "application/octet-stream" });
+    },
+
+    getFilename: function(waypoints) {
+        if (!waypoints || waypoints.length < 2) return "ROUTE0.RTE";
+        const formatID = (id) => {
+            const clean = id.trim().toUpperCase();
+            return (clean.length === 4 && clean[0] === 'K') ? clean.substring(1) : clean.substring(0, 3);
+        };
+        const start = formatID(waypoints[0].id);
+        const end = formatID(waypoints[waypoints.length - 1].id);
+        return `${start}-${end}0.RTE`;
+    },
+
+    _readString: function(view, offset, len) {
+        let s = "";
+        for (let i = 0; i < len; i++) {
+            let c = view.getUint8(offset + i);
+            if (c === 0) break;
+            if (c >= 32 && c <= 126) s += String.fromCharCode(c);
+        }
+        return s.trim();
+    },
+
+    _writeString: function(view, offset, str, maxLen, nullTerm) {
+        const s = (str || "").toString().toUpperCase().trim().substring(0, maxLen);
+        for (let i = 0; i < maxLen; i++) {
+            view.setUint8(offset + i, (i < s.length) ? s.charCodeAt(i) : 0x20);
+        }
+        if (nullTerm) view.setUint8(offset + maxLen - 1, 0x00);
+    },
+
+    _calculateCRC32: function(buffer) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < buffer.length; i++) {
+            crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ buffer[i]) & 0xFF];
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
     }
 };
 
-// --- EFFICIENT MEMORY LOADER ---
-async function getObstacles() {
-    if (!globalObstacles) {
-        const response = await fetch(`obstacles.json?v=${dbVersion}`);
-        globalObstacles = await response.json();
-    }
-    return globalObstacles;
+/* --- FUNCTION: FAA DATABASE ENGINE (v2.1) --- */
+async function initAviationDB() { await verifyDatabaseIntegrity(); }
+
+async function verifyDatabaseIntegrity() {
+    return new Promise((resolve) => {
+        const req = indexedDB.open(FAA_DB_NAME, 2);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (db.objectStoreNames.contains(FAA_STORE_NAME)) db.deleteObjectStore(FAA_STORE_NAME);
+            const store = db.createObjectStore(FAA_STORE_NAME, { autoIncrement: true });
+            store.createIndex("id", "id", { unique: false });
+        };
+        req.onsuccess = (e) => {
+            const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readonly"); const store = tx.objectStore(FAA_STORE_NAME);
+            if (!store.indexNames.contains("id")) { db.close(); resetDatabase(); } else { db.close(); checkVersionAndSync(); }
+        };
+        req.onerror = () => { resetDatabase(); };
+    });
 }
 
-// --- NOTAM AGL PARSER (SMART OVERRIDE) ---
-function parseNotamAGL(text, fallback) {
-    if (!text) return (fallback === "1" || fallback === "Unknown") ? "Unknown" : fallback;
-    
-    // Pattern 1: Captures decimals as well! (e.g., 250 AGL, 1017.4FT AGL, 250 FT AGL)
-    const aglMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:FT)?\s*AGL/i);
-    if (aglMatch) return aglMatch[1];
-    
-    // Pattern 2: Fallback for MSL enclosures like 1049 MSL ( 250 )
-    const backupMatch = text.match(/MSL\s*\(\s*(\d+(?:\.\d+)?)\s*(?:FT)?\s*\)/i);
-    if (backupMatch) return backupMatch[1];
-    
-    if (fallback && fallback !== "1" && fallback !== "Unknown") return fallback;
-    return "Unknown";
-}
-
-// --- REAL-TIME COUNTER (DEBOUNCED) ---
-let counterTimeout;
-function triggerCounterUpdate() {
-    clearTimeout(counterTimeout);
-    counterTimeout = setTimeout(runLiveCounter, 500);
-}
-
-async function runLiveCounter() {
-    if (!globalObstacles) return;
-    
-    // UI Loading States
-    const counterEl = document.getElementById('liveCounter');
-    counterEl.innerText = "Calculating...";
-    counterEl.style.color = "var(--dispatch)";
-
-    const notamCounterEl = document.getElementById('notamLiveCounter');
-    if (notamCounterEl) {
-        notamCounterEl.innerText = "Calculating...";
-        notamCounterEl.style.color = "var(--dispatch)";
-    }
-
-    const mode = document.querySelector('input[name="centerMode"]:checked').value;
-    const minAGL = parseInt(document.getElementById('minAGL').value);
-    const searchRadiusNM = parseFloat(document.getElementById('radiusNM').value);
-    const centers = getCenterCoords();
-    
-    // Define target states early for both loops
-    let targetStates = [];
-    if (mode === 'state') {
-        const rawStates = document.getElementById('stateIds').value;
-        targetStates = rawStates.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length === 2);
-    }
-    
-    let count = 0;
-    let notamCount = 0;
-
-    // 1. Process Standard Obstacles
-    if (!isNaN(minAGL)) {
-        if (mode === 'state') {
-            if (targetStates.length > 0) {
-                for (let i = 0; i < globalObstacles.length; i++) {
-                    const obs = globalObstacles[i];
-                    if (obs.agl > minAGL && targetStates.includes(obs.state)) count++;
-                }
-            }
-        } else if (centers && centers.length > 0 && !isNaN(searchRadiusNM)) {
-            for (let i = 0; i < globalObstacles.length; i++) {
-                const obs = globalObstacles[i];
-                if (obs.agl > minAGL) {
-                    for (let j = 0; j < centers.length; j++) {
-                        if (haversineNM(centers[j].lat, centers[j].lon, obs.lat, obs.lon) <= searchRadiusNM) {
-                            count++;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 2. Process NOTAMs (with Geospatial State Hack)
-    const incNotam = document.getElementById('notamInclude').checked;
-    const notamMinAGL = parseInt(document.getElementById('notamMinAGL').value) || 0;
-
-    if (incNotam && globalNotams) {
-        for (let i = 0; i < globalNotams.length; i++) {
-            const notam = globalNotams[i];
-            let keep = false;
-
-            if (mode === 'state') {
-                // Spatial join: Keep if within 1NM of any obstacle in the target state
-                for (let k = 0; k < globalObstacles.length; k++) {
-                    if (targetStates.includes(globalObstacles[k].state) && haversineNM(globalObstacles[k].lat, globalObstacles[k].lon, notam.lat, notam.lon) <= 1.0) {
-                        keep = true;
-                        break;
-                    }
-                }
-            } else if (centers && !isNaN(searchRadiusNM)) {
-                for (let j = 0; j < centers.length; j++) {
-                    if (haversineNM(centers[j].lat, centers[j].lon, notam.lat, notam.lon) <= searchRadiusNM) {
-                        keep = true;
-                        break;
-                    }
-                }
-            }
-
-            if (keep) {
-                let finalAgl = parseNotamAGL(notam.text, notam.agl);
-                let aglNum = parseFloat(finalAgl);
-                if (!isNaN(aglNum) && aglNum < notamMinAGL) {
-                    keep = false;
-                }
-            }
-
-            if (keep) notamCount++;
-        }
-    }
-
-    // Update UI Counters
-    counterEl.innerText = `${count} Obstacle${count !== 1 ? 's' : ''}`;
-    counterEl.style.color = count > 0 ? "var(--success)" : "var(--text)";
-
-    if (notamCounterEl) {
-        if (!incNotam) {
-            notamCounterEl.innerText = "Layer Disabled";
-            notamCounterEl.style.color = "var(--text)";
-        } else {
-            notamCounterEl.innerText = `${notamCount} Active Outage${notamCount !== 1 ? 's' : ''}`;
-            notamCounterEl.style.color = notamCount > 0 ? "var(--dispatch)" : "var(--text)";
-        }
-    }
-}
-
-  
-// --- CORE UI CONTROLS ---
-function toggleTheme() {
-    const body = document.body;
-    const btn = document.getElementById('themeBtn');
-    const isNowLight = body.getAttribute('data-theme') !== 'light';
-    body.setAttribute('data-theme', isNowLight ? 'light' : 'dark');
-    btn.innerText = isNowLight ? '🌙' : '☀️';
-}
-
-function toggleCenterInput() {
-    const mode = document.querySelector('input[name="centerMode"]:checked').value;
-    document.getElementById('faaInputGroup').style.display = mode === 'faa' ? 'block' : 'none';
-    document.getElementById('coordInputGroup').style.display = mode === 'coord' ? 'grid' : 'none';
-    document.getElementById('stateInputGroup').style.display = mode === 'state' ? 'block' : 'none';
-    
-    document.getElementById('radiusWrap').style.display = mode === 'state' ? 'none' : 'block';
-    document.getElementById('boundaryWrap').style.visibility = mode === 'state' ? 'hidden' : 'visible';
-
-    if(mode === 'faa') updateFacilityName();
-    triggerCounterUpdate();
-}
-
-function openVersionModal() { document.getElementById('versionModal').style.display = 'block'; }
-function closeVersionModal() { document.getElementById('versionModal').style.display = 'none'; }
-window.onclick = function(event) { if (event.target === document.getElementById('versionModal')) closeVersionModal(); }
-
-function updateOpacityLabel() { document.getElementById('opacityValue').textContent = document.getElementById('fillOpacity').value + '%'; }
-function toggleOpacitySlider() { document.getElementById('opacityGroup').style.display = document.getElementById('enableFill').checked ? 'flex' : 'none'; }
-function updateNotamOpacityLabel() { document.getElementById('notamOpacityValue').textContent = document.getElementById('notamFillOpacity').value + '%'; }
-function toggleNotamOpacitySlider() { document.getElementById('notamOpacityGroup').style.display = document.getElementById('notamEnableFill').checked ? 'flex' : 'none'; }
-
-function checkAGLWarning() {
-    const agl = parseInt(document.getElementById('minAGL').value) || 0;
-    document.getElementById('aglWarning').style.display = agl < 200 ? 'block' : 'none';
-    triggerCounterUpdate();
-}
-
-// --- INPUT VALIDATION ---
-function validateInputs() {
-    const mode = document.querySelector('input[name="centerMode"]:checked').value;
-
-    if (mode !== 'state') {
-        const radiusNM = parseFloat(document.getElementById('radiusNM').value);
-        if (isNaN(radiusNM) || radiusNM < 1 || radiusNM > 500) {
-            alert("Search radius must be between 1 and 500 NM.");
-            return false;
-        }
-    }
-
-    if (mode === 'coord') {
-        const lat = parseFloat(document.getElementById('lat').value);
-        const lon = parseFloat(document.getElementById('lon').value);
-        if (isNaN(lat) || lat < -90.0 || lat > 90.0) {
-            alert("Latitude must be between -90.0 and 90.0 degrees.");
-            return false;
-        }
-        if (isNaN(lon) || lon < -180.0 || lon > 180.0) {
-            alert("Longitude must be between -180.0 and 180.0 degrees.");
-            return false;
-        }
-    }
-    
-    if (mode === 'state') {
-        const states = document.getElementById('stateIds').value.split(',').map(s=>s.trim().toUpperCase()).filter(s=>s.length===2);
-        if (states.length === 0) {
-            alert("Please enter at least one valid 2-letter state code (e.g. NC, VA).");
-            return false;
-        }
-        
-        const invalidStates = states.filter(s => !validStates.includes(s));
-        if (invalidStates.length > 0) {
-            alert(`Invalid state/territory code(s) detected: ${invalidStates.join(', ')}. Please use official 2-letter USPS codes.`);
-            return false;
-        }
-    }
-
-    const minAGL = parseInt(document.getElementById('minAGL').value);
-    if (isNaN(minAGL) || minAGL < 0 || minAGL > 10000) {
-        alert("Minimum obstacle height must be between 0 and 10,000 ft AGL.");
-        return false;
-    }
-
-    const ringNM = parseFloat(document.getElementById('ringNM').value);
-    if (isNaN(ringNM) || ringNM < 0.1 || ringNM > 10.0) {
-        alert("Ring radius around obstacles must be between 0.1 and 10.0 NM.");
-        return false;
-    }
-
-    if (mode !== 'state') {
-        const boundaryWidth = parseInt(document.getElementById('boundaryWidth').value);
-        if (isNaN(boundaryWidth) || boundaryWidth < 1 || boundaryWidth > 10) {
-            alert("Search boundary line thickness must be between 1 and 10 px.");
-            return false;
-        }
-    }
-
-    const ringWidth = parseInt(document.getElementById('ringWidth').value);
-    if (isNaN(ringWidth) || ringWidth < 1 || ringWidth > 10) {
-        alert("Obstacle ring line thickness must be between 1 and 10 px.");
-        return false;
-    }
-
-    const notamMinAGL = parseInt(document.getElementById('notamMinAGL').value);
-    if (isNaN(notamMinAGL) || notamMinAGL < 0 || notamMinAGL > 10000) {
-        alert("NOTAM Minimum height must be between 0 and 10,000 ft AGL.");
-        return false;
-    }
-
-    return true;
-}
-
-// --- SMART LOOKUP LOGIC ---
-function getResolvedAirports(inputStr) {
-    if (!inputStr) return [];
-    const ids = inputStr.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
-    const resolved = [];
-    
-    for (const id of ids) {
-        let apt = globalAirports[id];
-        if (!apt && id.length === 4 && id.startsWith('K')) {
-            apt = globalAirports[id.substring(1)];
-        }
-        if (apt) resolved.push({ ...apt, requestedId: id });
-    }
-    return resolved;
-}
-
-function updateFacilityName() {
-    const val = document.getElementById('faaId').value;
-    const apts = getResolvedAirports(val);
-    const nameDiv = document.getElementById('facilityName');
-    
-    if (apts.length > 0) {
-        const names = apts.map(a => a.name || a.requestedId).join(', ');
-        nameDiv.innerText = `Centerpoint(s) set to ${names}`;
-        nameDiv.style.color = "var(--success)";
-    } else if (val.trim().length > 0) {
-        nameDiv.innerText = "Identifier(s) not found.";
-        nameDiv.style.color = "var(--danger)";
-    } else {
-        nameDiv.innerText = "";
-    }
-    triggerCounterUpdate();
-}
-
-// --- MATH & COORDINATE RESOLUTION ---
-function getCenterCoords() {
-    const mode = document.querySelector('input[name="centerMode"]:checked').value;
-    if (mode === 'state') return [];
-
-    if (mode === 'faa') {
-        const apts = getResolvedAirports(document.getElementById('faaId').value);
-        if (apts.length === 0) return null;
-        return apts.map(a => ({ lat: a.lat, lon: a.lon, id: a.requestedId }));
-    } else {
-        return [{ 
-            lat: parseFloat(document.getElementById('lat').value), 
-            lon: parseFloat(document.getElementById('lon').value),
-            id: 'CUSTOM'
-        }];
-    }
-}
-
-function hexToKmlColor(hex, opacityHex) {
-    hex = hex.replace('#', '');
-    const r = hex.substring(0, 2);
-    const g = hex.substring(2, 4);
-    const b = hex.substring(4, 6);
-    return `${opacityHex}${b}${g}${r}`; 
-}
-
-function haversineNM(lat1, lon1, lat2, lon2) {
-    const R = 3440.065; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-}
-
-function generateCircleCoords(lat, lon, radiusNM) {
-    const coords = [];
-    const earthRadiusNM = 3440.065; 
-    const dRad = radiusNM / earthRadiusNM;
-    const latRad = lat * Math.PI / 180;
-    const lonRad = lon * Math.PI / 180;
-
-    for (let i = 0; i <= 36; i++) {
-        const angle = (i === 36 ? 0 : i) / 36.0 * 2 * Math.PI;
-        const newLatRad = Math.asin(Math.sin(latRad) * Math.cos(dRad) + Math.cos(latRad) * Math.sin(dRad) * Math.cos(angle));
-        const newLonRad = lonRad + Math.atan2(Math.sin(angle) * Math.sin(dRad) * Math.cos(latRad), Math.cos(dRad) - Math.sin(latRad) * Math.sin(newLatRad));
-        coords.push(`${newLonRad * 180 / Math.PI},${newLatRad * 180 / Math.PI},0`);
-    }
-    return coords.join(" ");
-}
-
-// --- KML GENERATOR ---
-async function generateKML() {
-    if (!validateInputs()) return;
-    
-    const mode = document.querySelector('input[name="centerMode"]:checked').value;
-    const centers = getCenterCoords();
-    if (!centers && mode !== 'state') return;
-    
-    let targetStates = [];
-    if (mode === 'state') {
-        const rawStates = document.getElementById('stateIds').value;
-        targetStates = rawStates.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length === 2);
-    }
-    
-    const searchRadiusNM = mode !== 'state' ? parseFloat(document.getElementById('radiusNM').value) : 0;
-    const minAGL = parseInt(document.getElementById('minAGL').value);
-    
-    // Standard Obstacle Setup
-    const ringRadiusNM = parseFloat(document.getElementById('ringNM').value); 
-    const isFilled = document.getElementById('enableFill').checked;
-    const opacityPercent = isFilled ? parseInt(document.getElementById('fillOpacity').value) : 0;
-    let opacityHex = Math.round((opacityPercent / 100) * 255).toString(16).padStart(2, '0');
-    const ringWidth = document.getElementById('ringWidth').value;
-    const outlineColor = hexToKmlColor(document.getElementById('outlineColor').value, 'ff');
-    const fillColor = hexToKmlColor(document.getElementById('fillColor').value, opacityHex);
-    const enableFill = isFilled ? '1' : '0';
-
-    // NOTAM Setup
-    const incNotam = document.getElementById('notamInclude').checked;
-    const notamMinAGL = parseInt(document.getElementById('notamMinAGL').value) || 0;
-    const notamRingNM = parseFloat(document.getElementById('notamRingNM').value);
-    const notamWidth = document.getElementById('notamRingWidth').value;
-    const notamOutlineColor = hexToKmlColor(document.getElementById('notamOutlineColor').value, 'ff');
-    const notamEnableFillRaw = document.getElementById('notamEnableFill').checked;
-    const notamOpacPercent = notamEnableFillRaw ? parseInt(document.getElementById('notamFillOpacity').value) : 0;
-    const notamOpacityHex = Math.round((notamOpacPercent / 100) * 255).toString(16).padStart(2, '0');
-    const notamFillColor = hexToKmlColor(document.getElementById('notamFillColor').value, notamOpacityHex);
-    const notamEnableFill = notamEnableFillRaw ? '1' : '0';
-
-    const boundaryWidth = mode !== 'state' ? document.getElementById('boundaryWidth').value : 2;
-    const enableBoundary = document.getElementById('enableBoundary').checked;
-    const boundaryColorHex = hexToKmlColor(document.getElementById('boundaryColor').value, 'ff');
-
+async function checkVersionAndSync() {
+    const VERSION_URL = "https://raw.githubusercontent.com/cwmauze/genesys-waypoint-tools/refs/heads/main/version.json";
+    const FAA_DATA_URL = "https://raw.githubusercontent.com/cwmauze/genesys-waypoint-tools/refs/heads/main/faa_master.json";
     try {
-        const obstacles = await getObstacles();
-
-        let centerLabel = "CustomCoords";
-        if (mode === 'state') {
-            centerLabel = targetStates.join('-');
-        } else if (mode === 'faa') {
-            centerLabel = centers.map(c => c.id).join('-');
-            if (centerLabel.length > 30) centerLabel = centerLabel.substring(0, 30) + '...';
-        } else {
-            const latLabel = parseFloat(document.getElementById('lat').value).toFixed(2);
-            const lonLabel = parseFloat(document.getElementById('lon').value).toFixed(2);
-            centerLabel = `${latLabel}_${lonLabel}`;
-        }
+        const vResp = await fetch(VERSION_URL); const remote = await vResp.json();
+        const localCycle = localStorage.getItem('faa_cycle');
+        const dbVer = localStorage.getItem('db_schema_ver');
         
-        let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n`;
-        if (mode === 'state') {
-            kml += `\t<name>${centerLabel} obstacles > ${minAGL} AGL</name>\n`;
-        } else {
-            kml += `\t<name>${centerLabel} obstacles > ${minAGL} AGL within ${searchRadiusNM}NM</name>\n`;
-        }
-        
-        if (enableBoundary && mode !== 'state') {
-            kml += `\t<Style id="boundaryStyle">\n\t\t<LineStyle>\n\t\t\t<color>${boundaryColorHex}</color>\n\t\t\t<width>${boundaryWidth}</width>\n\t\t</LineStyle>\n\t\t<PolyStyle>\n\t\t\t<fill>0</fill>\n\t\t</PolyStyle>\n\t</Style>\n`;
-            centers.forEach(c => {
-                const boundaryCoords = generateCircleCoords(c.lat, c.lon, searchRadiusNM);
-                kml += `\t<Placemark>\n\t\t<name>Search Area Boundary (${c.id} - ${searchRadiusNM} NM)</name>\n\t\t<styleUrl>#boundaryStyle</styleUrl>\n`;
-                kml += `\t\t<Polygon>\n\t\t\t<outerBoundaryIs>\n\t\t\t\t<LinearRing>\n\t\t\t\t\t<coordinates>\n\t\t\t\t\t\t${boundaryCoords}\n\t\t\t\t\t</coordinates>\n\t\t\t\t</LinearRing>\n\t\t\t</outerBoundaryIs>\n\t\t</Polygon>\n\t</Placemark>\n`;
-            });
-        }
-        
-        kml += `\t<Style id="customCircle">\n\t\t<LineStyle>\n\t\t\t<color>${outlineColor}</color>\n\t\t\t<width>${ringWidth}</width>\n\t\t</LineStyle>\n`;
-        kml += `\t\t<PolyStyle>\n\t\t\t<color>${fillColor}</color>\n\t\t\t<fill>${enableFill}</fill>\n\t\t</PolyStyle>\n\t</Style>\n`;
+        updateAiracDisplay(remote.cycle);
 
-        if (incNotam) {
-            kml += `\t<Style id="notamCircle">\n\t\t<LineStyle>\n\t\t\t<color>${notamOutlineColor}</color>\n\t\t\t<width>${notamWidth}</width>\n\t\t</LineStyle>\n`;
-            kml += `\t\t<PolyStyle>\n\t\t\t<color>${notamFillColor}</color>\n\t\t\t<fill>${notamEnableFill}</fill>\n\t\t</PolyStyle>\n\t</Style>\n`;
+        if (remote.cycle !== localCycle || dbVer !== '2') {
+            updateDBStatus("loading", `Syncing...`);
+            const dResp = await fetch(FAA_DATA_URL); const data = await dResp.json();
+            await saveToIndexedDB(data, remote.cycle);
+        } else { 
+            updateDBStatus("ready", "Verified"); 
+            dbReady = true; 
         }
+    } catch (e) { updateDBStatus("error", "Offline"); }
+}
 
-        obstacles.forEach(obs => {
-            if (obs.agl > minAGL) {
-                let keep = false;
-                
-                if (mode === 'state') {
-                    if (obs.state && targetStates.includes(obs.state)) keep = true;
-                } else {
-                    for (const c of centers) {
-                        if (haversineNM(c.lat, c.lon, obs.lat, obs.lon) <= searchRadiusNM) {
-                            keep = true;
-                            break;
-                        }
-                    }
+function updateAiracDisplay(dateStr) {
+    // Calculates estimated AIRAC Cycle based on 2026-01-22 anchor
+    try {
+        const d = new Date(dateStr);
+        if(isNaN(d)) { document.getElementById('airac-display').innerText = dateStr; return; }
+        
+        const anchor = new Date("2026-01-22T00:00:00Z"); // Cycle 2601 Start
+        const target = new Date(dateStr + "T00:00:00Z");
+        
+        const diffDays = Math.round((target - anchor) / (1000*60*60*24));
+        const cycle = 2601 + Math.round(diffDays / 28);
+        
+        const mon = target.toLocaleString('en-us', { month: 'short' }).toUpperCase();
+        const day = target.getUTCDate();
+        const year = target.getUTCFullYear(); 
+
+        document.getElementById('airac-display').innerText = `${cycle} (Eff. ${day}-${mon}-${year})`;
+    } catch(e) { 
+        document.getElementById('airac-display').innerText = dateStr; 
+    }
+}
+
+function resetDatabase() {
+    updateDBStatus("loading", "Reseting DB...");
+    const req = indexedDB.deleteDatabase(FAA_DB_NAME);
+    req.onsuccess = () => { localStorage.removeItem('faa_cycle'); localStorage.removeItem('db_schema_ver'); window.location.reload(); };
+}
+
+function saveToIndexedDB(data, cycle) {
+    return new Promise((resolve) => {
+        const request = indexedDB.open(FAA_DB_NAME, 2);
+        request.onsuccess = (e) => {
+            const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readwrite"); const store = tx.objectStore(FAA_STORE_NAME); 
+            store.clear(); data.forEach(item => store.add(item));
+            tx.oncomplete = () => { localStorage.setItem('faa_cycle', cycle); localStorage.setItem('db_schema_ver', '2'); updateDBStatus("ready", "Verified"); dbReady = true; resolve(); };
+        };
+    });
+}
+
+function updateDBStatus(state, text) {
+    document.getElementById('dbDot').className = "status-dot " + state;
+    if (state === "ready") {
+        const now = new Date();
+        const l = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const z = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
+        document.getElementById('dbText').innerText = `${l}L (${z}Z)`;
+    } else {
+        document.getElementById('dbText').innerText = text;
+    }
+}
+
+function updateSessionStats() {
+    const rows = tbody.querySelectorAll('tr');
+    const count = rows.length;
+    
+    // Logic: Heuristic based on Elevation to distinguish Airports vs Fixes
+    let aptCount = 0;
+    rows.forEach(r => {
+        const elev = r.querySelectorAll('input')[4].value;
+        if (elev && elev !== '0' && elev !== '') aptCount++;
+    });
+    
+    // New Format: "12 (4 Airports, 8 Fixes)"
+    let label = `${count}`;
+    if (count > 0) {
+        label += ` (${aptCount} Airports, ${count - aptCount} Fixes)`;
+    }
+    document.getElementById('wp-composition').innerText = label;
+
+    // Logic B: Estimated .DAT Size (Header + Rows + Footer)
+    // Formula: 72 (Header) + (Rows * 88) + 8 (CRC/Pad)
+    const bytes = 72 + (count * 88) + 8; 
+    const kb = (bytes / 1024).toFixed(1);
+    const sizeElem = document.getElementById('est-size');
+    const sizeDot = document.getElementById('sizeDot');
+    
+    sizeElem.innerText = `${kb} KB / 88 KB`;
+    
+    // Status Logic: Green < 80KB, Yellow > 80KB, Red > 88KB (Limit)
+    if (bytes < 81920) { sizeDot.className = "status-dot ready"; }
+    else if (bytes < 88016) { sizeDot.className = "status-dot loading"; }
+    else { sizeDot.className = "status-dot error"; }
+}
+
+function saveSession() {
+    const data = [];
+    tbody.querySelectorAll('tr').forEach(r => {
+        const inps = r.querySelectorAll('input');
+        if (inps.length >= 6) {
+            data.push({ id: inps[0].value, name: inps[1].value, lat: inps[2].dataset.raw || inps[2].value, lon: inps[3].dataset.raw || inps[3].value, elev: inps[4].value, app: inps[5].value });
+        }
+    });
+    localStorage.setItem('genesys_session', JSON.stringify(data)); 
+    checkGlobalHealth();
+    updateSessionStats();
+}
+
+function loadSession() {
+    const raw = localStorage.getItem('genesys_session');
+    if (raw) { const data = JSON.parse(raw); if (data.length > 0) { populateTable(data); logAction("Session restored"); } }
+}
+
+function checkGlobalHealth() {
+    const rows = tbody.querySelectorAll('tr'); let errorCount = 0;
+    rows.forEach(r => {
+        const inps = r.querySelectorAll('input');
+        if (inps.length >= 4) {
+            const lat = parseFloat(parseCoordinate(inps[2].dataset.raw || inps[2].value));
+            const lon = parseFloat(parseCoordinate(inps[3].dataset.raw || inps[3].value));
+            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) errorCount++;
+        }
+    });
+    const statusText = document.getElementById('sys-status'), statusDot = document.getElementById('sysDot');
+    if (errorCount > 0) { statusText.innerText = `${errorCount} Range Errors`; statusText.style.color = "var(--danger)"; statusDot.className = "status-dot danger-pulse"; } 
+    else { statusText.innerText = "System Ready"; statusText.style.color = ""; statusDot.className = "status-dot ready"; }
+}
+
+function rotateCoordFormat() {
+    coordDisplayMode = (coordDisplayMode + 1) % 3;
+    const labels = ["(DD)", "(DDM)", "(DMS)"];
+    document.getElementById('latHeader').innerHTML = `Latitude ${labels[coordDisplayMode]}<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span>`;
+    document.getElementById('lonHeader').innerHTML = `Longitude ${labels[coordDisplayMode]}<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span>`;
+    tbody.querySelectorAll('tr').forEach(r => {
+        const inps = r.querySelectorAll('input');
+        if (inps.length >= 4) {
+            let lat = parseCoordinate(inps[2].dataset.raw || inps[2].value);
+            let lon = parseCoordinate(inps[3].dataset.raw || inps[3].value);
+            inps[2].dataset.raw = lat; inps[3].dataset.raw = lon;
+            inps[2].value = formatCoord(lat, true); inps[3].value = formatCoord(lon, false);
+        }
+    });
+}
+
+function formatCoord(val, isLat) {
+    let d = parseFloat(val); if (isNaN(d)) return "";
+    if (coordDisplayMode === 0) return d.toFixed(6);
+    let absD = Math.abs(d), deg = Math.floor(absD), minFull = (absD - deg) * 60;
+    let hemi = isLat ? (d >= 0 ? 'N' : 'S') : (d >= 0 ? 'E' : 'W');
+    if (coordDisplayMode === 1) return `${deg}° ${minFull.toFixed(3)}' ${hemi}`;
+    let min = Math.floor(minFull), sec = (minFull - min) * 60;
+    return `${deg}° ${min}' ${sec.toFixed(1)}" ${hemi}`;
+}
+
+function updateFileNameDisplay() {
+    const f = document.getElementById('fileInput'), b = document.getElementById('fileBtn');
+    if (f.files.length > 0) { b.innerHTML = `Loaded: ${f.files[0].name} <span>CHANGE FILE</span>`; }
+}
+
+function processFile() {
+    const f = document.getElementById('fileInput');
+    if (f.files.length > 0) {
+        const file = f.files[0], reader = new FileReader(), ext = file.name.toLowerCase().split('.').pop();
+        lastLoadedExtension = ext;
+        reader.onload = e => {
+            if (ext === 'dat') decodeBinary(e.target.result);
+            else if (ext === 'rte') decodeRTE(e.target.result); 
+            else if (ext === 'fpl') parseFPL(e.target.result); 
+            else if (ext === 'kml' || ext === 'xml') parseKML(e.target.result);
+            else smartParse(e.target.result);
+            
+            // UPDATED LOGIC (v8.4.3.4 Patch): 
+            // Determine if this is a Route file (.RTE / .FPL)
+            const isRouteFile = (ext === 'rte' || ext === 'fpl');
+            
+            // Force Toggle States based on file type
+            // If it is a route file, turn ON legs and route line.
+            // If it is a .DAT/CSV/etc, turn OFF legs and route line.
+            setOverlayState('legs', isRouteFile);
+            setOverlayState('route', isRouteFile);
+
+            logAction("Loaded " + file.name);
+        };
+        (ext === 'dat' || ext === 'rte') ? reader.readAsArrayBuffer(file) : reader.readAsText(file);
+    }
+}
+
+function parseFPL(text) {
+    const parser = new DOMParser(), xml = parser.parseFromString(text, "text/xml"), wps = [], wpLookup = {};
+    const tablePoints = xml.querySelectorAll("waypoint");
+    tablePoints.forEach(wp => {
+        const id = wp.querySelector("identifier")?.textContent; const lat = wp.querySelector("lat")?.textContent; const lon = wp.querySelector("lon")?.textContent;
+        if (id) wpLookup[id] = { lat: parseFloat(lat).toFixed(6), lon: parseFloat(lon).toFixed(6) };
+    });
+    const routePoints = xml.querySelectorAll("route-point");
+    routePoints.forEach(rp => {
+        const id = rp.querySelector("waypoint-identifier")?.textContent;
+        if (id && wpLookup[id]) wps.push({ id: id, name: "", lat: wpLookup[id].lat, lon: wpLookup[id].lon });
+    });
+    if (wps.length > 0) { populateTable(wps); updateMapControls(); }
+}
+
+function decodeBinary(buf) {
+    const v = new DataView(buf), count = v.getUint32(0, true), wps = [];
+    for (let i = 0; i < count; i++) {
+        let off = HEADER_SIZE + (i * RECORD_SIZE), id = ""; nm = "";
+        for (let j = 0; j < 9; j++) { let c = v.getUint8(off + 24 + j); if (c !== 0) id += String.fromCharCode(c); }
+        for (let j = 0; j < 23; j++) { let c = v.getUint8(off + 33 + j); if (c !== 0) nm += String.fromCharCode(c); }
+        wps.push({ id: id.trim(), name: nm.trim(), lat: v.getFloat64(off + 72, true).toFixed(6), lon: v.getFloat64(off + 80, true).toFixed(6) });
+    }
+    populateTable(wps);
+}
+
+function decodeRTE(buf) {
+    const wps = GenesysRTE.import(buf);
+    // Map internal engine format to table format
+    const tableData = wps.map(wp => ({
+        id: wp.id,
+        name: wp.desc,
+        lat: wp.lat.toFixed(6),
+        lon: wp.lon.toFixed(6)
+    }));
+    populateTable(tableData);
+}
+
+function parseKML(text) {
+    const parser = new DOMParser(), xml = parser.parseFromString(text, "text/xml"), wps = [];
+    const pms = xml.querySelectorAll("Placemark");
+    pms.forEach(pm => {
+        const name = pm.querySelector("name")?.textContent || "WP";
+        const coordTxt = pm.querySelector("coordinates")?.textContent.trim();
+        if (coordTxt) { const parts = coordTxt.split(","); wps.push({ id: name.substring(0,5), name: name, lat: parts[1], lon: parts[0] }); }
+    });
+    populateTable(wps);
+}
+
+function smartParse(text) {
+    const wps = [];
+    const ddmPattern = /(\d{1,3}\s+\d{1,2}\.\d{1,4}\s*[NS])\s*(\d{1,3}\s+\d{1,2}\.\d{1,4}\s*[EW])/gi;
+    const decimalPattern = /(\d{2}\.\d{6,})(-\d{2,3}\.\d{6,})/g;
+    let match, lastIndex = 0;
+    while ((match = ddmPattern.exec(text)) !== null) {
+        let gapText = text.substring(lastIndex, match.index).trim(), id = "WP", name = "", lines = gapText.split(/\r?\n/), lastLine = lines[lines.length-1].trim().replace(/[,\s|;]+$/, "");
+        if (lastLine) {
+            let parts = lastLine.split(/[,\t|;]/); id = parts[0].trim().substring(0, 5).toUpperCase();
+            if (parts.length >= 2) name = parts[1].trim();
+            else { let spaceParts = parts[0].trim().split(/\s+/); if (spaceParts.length >= 2) { id = spaceParts[0].substring(0, 5).toUpperCase(); name = spaceParts.slice(1).join(" "); } }
+        }
+        if (name.toUpperCase() === id) name = "";
+        wps.push({ id: id, name: name || "Import", lat: parseCoordinate(match[1]), lon: parseCoordinate(match[2]) });
+        lastIndex = ddmPattern.lastIndex;
+    }
+    if (wps.length === 0) {
+        while ((match = decimalPattern.exec(text)) !== null) {
+            let lookback = text.substring(Math.max(0, match.index - 15), match.index).trim().replace(/[,\s|;]+$/, ""), id = "WP", name = "", parts = lookback.split(/[,\t|;]/), lastPart = parts[parts.length-1].trim();
+            if (lastPart) { let spaceParts = lastPart.split(/\s+/); id = spaceParts[0].substring(0, 5).toUpperCase(); if (spaceParts.length >= 2) name = spaceParts.slice(1).join(" "); }
+            if (name.toUpperCase() === id) name = "";
+            wps.push({ id: id, name: name || "Import", lat: parseFloat(match[1]).toFixed(6), lon: parseFloat(match[2]).toFixed(6) });
+        }
+    }
+    if (wps.length === 0) {
+        const lines = text.split(/\r?\n/), stdPattern = /(-?\d{1,3}[°\s\-\.][0-6]?\d[\s\-\.][0-6]?\d?\.?\d*[N|S|E|W]?)|(-?\d{1,3}\.\d{4,})/gi;
+        lines.forEach(l => {
+            const m = l.match(stdPattern);
+            if (m && m.length >= 2) {
+                let id = "WP", name = "", firstCoordIdx = l.indexOf(m[0]), before = l.substring(0, firstCoordIdx).trim().replace(/[,\s|;]+$/, "");
+                if (before) {
+                    let parts = before.split(/[,\t|;]/); id = parts[0].trim().substring(0, 5).toUpperCase();
+                    if (parts.length >= 2) name = parts[1].trim();
+                    else { let spaceParts = parts[0].trim().split(/\s+/); if (spaceParts.length >= 2) { id = spaceParts[0].substring(0, 5).toUpperCase(); name = spaceParts.slice(1).join(" "); } }
                 }
-
-                if (keep) {
-                    const circleCoords = generateCircleCoords(obs.lat, obs.lon, ringRadiusNM);
-                    kml += `\t<Placemark>\n\t\t<name>${obs.city} (${obs.id}) - ${obs.agl} AGL</name>\n\t\t<styleUrl>#customCircle</styleUrl>\n`;
-                    kml += `\t\t<Polygon>\n\t\t\t<outerBoundaryIs>\n\t\t\t\t<LinearRing>\n\t\t\t\t\t<coordinates>\n\t\t\t\t\t\t${circleCoords}\n\t\t\t\t\t</coordinates>\n\t\t\t\t</LinearRing>\n\t\t\t</outerBoundaryIs>\n\t\t</Polygon>\n\t</Placemark>\n`;
-                }
+                if (name.toUpperCase() === id) name = "";
+                wps.push({ id: id, name: name || "Import", lat: parseCoordinate(m[0]), lon: parseCoordinate(m[1]) });
             }
         });
-
-        if (incNotam && globalNotams) {
-            globalNotams.forEach(notam => {
-            let keep = false;
-                if (mode === 'state') {
-                    for (let k = 0; k < globalObstacles.length; k++) {
-                        if (targetStates.includes(globalObstacles[k].state) && haversineNM(globalObstacles[k].lat, globalObstacles[k].lon, notam.lat, notam.lon) <= 1.0) {
-                            keep = true;
-                            break;
-                        }
-                    }
-                } else {
-                    for (const c of centers) {
-                        if (haversineNM(c.lat, c.lon, notam.lat, notam.lon) <= searchRadiusNM) {
-                            keep = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (keep) {
-                    let finalAgl = parseNotamAGL(notam.text, notam.agl);
-                    let aglNum = parseFloat(finalAgl); // FIX: parseFloat to retain decimals!
-                    if (!isNaN(aglNum) && aglNum < notamMinAGL) {
-                        keep = false;
-                    }
-
-                    if (keep) {
-                        const circleCoords = generateCircleCoords(notam.lat, notam.lon, notamRingNM);
-                        kml += `\t<Placemark>\n\t\t<name>UNLIT TOWER - ${finalAgl} ft AGL</name>\n`;
-                        kml += `\t\t<description><![CDATA[${notam.text}]]></description>\n`;
-                        kml += `\t\t<styleUrl>#notamCircle</styleUrl>\n`;
-                        kml += `\t\t<Polygon>\n\t\t\t<outerBoundaryIs>\n\t\t\t\t<LinearRing>\n\t\t\t\t\t<coordinates>\n\t\t\t\t\t\t${circleCoords}\n\t\t\t\t\t</coordinates>\n\t\t\t\t</LinearRing>\n\t\t\t</outerBoundaryIs>\n\t\t</Polygon>\n\t</Placemark>\n`;
-                    }
-                }
-            });
-        }
-
-        kml += `</Document>\n</kml>`;
-        
-        const now = new Date();
-        const dtStr = now.getFullYear() + 
-                      String(now.getMonth() + 1).padStart(2, '0') + 
-                      String(now.getDate()).padStart(2, '0') + "-" + 
-                      String(now.getHours()).padStart(2, '0') + 
-                      String(now.getMinutes()).padStart(2, '0');
-
-        const radiusStr = mode === 'state' ? "STATE" : `${searchRadiusNM}NM`;
-
-        const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Obstacles-${centerLabel}-${minAGL}AGL-${radiusStr}-${dtStr}.kml`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-    } catch (error) {
-        console.error("Error generating KML:", error);
-        alert("Make sure you are running this on a web server so it can load the obstacles.json file!");
     }
+    populateTable(wps);
 }
 
-// --- MAP PREVIEW INTEGRATION ---
-let leafletMap = null, previewLayerGroup = null;
-let layers = {}, activeBase = 'street';
+function populateTable(wps) {
+    tbody.innerHTML = '';
+    wps.forEach(wp => { const r = document.createElement('tr'); createRowCells(r, wp); tbody.appendChild(r); });
+    updateRowNumbers(); updateColumnVisibility(); saveSession();
+}
 
-async function showMapPreview() {
-    if (!validateInputs()) return;
+function handleTablePaste(targetInput, e) {
+    const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+    if (!pasteData.includes('\n') && !pasteData.includes('\t')) return; e.preventDefault();
+    const rows = pasteData.split(/\r?\n/).filter(line => line.length > 0);
+    const currentRow = targetInput.closest('tr'), currentColIdx = Array.from(currentRow.querySelectorAll('input')).indexOf(targetInput);
+    let targetRow = currentRow;
+    rows.forEach((rowContent, rIdx) => {
+        if (!targetRow) { addRows(1); targetRow = tbody.lastElementChild; }
+        const cells = rowContent.split('\t'), rowInputs = targetRow.querySelectorAll('input');
+        cells.forEach((cellVal, cIdx) => {
+            const inputIdx = currentColIdx + cIdx;
+            if (rowInputs[inputIdx]) {
+                let cleanVal = cellVal.trim();
+                if (inputIdx === 0) cleanVal = cleanVal.substring(0, 5).toUpperCase();
+                rowInputs[inputIdx].value = cleanVal; rowInputs[inputIdx].dispatchEvent(new Event('input')); 
+            }
+        });
+        targetRow = targetRow.nextElementSibling;
+    });
+    saveSession();
+}
+
+function validateInput(input, type) {
+    const val = parseFloat(parseCoordinate(input.value));
+    const isError = type === 'lat' ? (val < -90 || val > 90) : (val < -180 || val > 180);
+    input.style.backgroundColor = isError ? "rgba(251, 97, 97, 0.2)" : "";
+    checkGlobalHealth();
+}
+
+function handleAutocomplete(input) {
+    if (!dbReady) return;
+    const query = input.value.trim().toUpperCase();
+    const list = input.parentElement.querySelector('.autocomplete-list') || document.createElement('div');
+    list.className = 'autocomplete-list';
+    if (!input.parentElement.contains(list)) input.parentElement.appendChild(list);
+    if (query.length < 2) { list.style.display = 'none'; return; }
+
+    const request = indexedDB.open(FAA_DB_NAME, 2);
+    request.onsuccess = (e) => {
+        const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readonly"), store = tx.objectStore(FAA_STORE_NAME);
+        const index = store.index("id"); const range = IDBKeyRange.bound(query, query + '\uffff'); const matches = [];
+        index.openCursor(range).onsuccess = (ev) => {
+            const cursor = ev.target.result;
+            if (cursor && matches.length < 8) { matches.push(cursor.value); cursor.continue(); } else { renderMatches(matches, list, input); }
+        };
+    };
+}
+
+function renderMatches(matches, list, input) {
+    if (matches.length === 0) { list.style.display = 'none'; return; }
+    list.innerHTML = '';
+    matches.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'autocomplete-item';
+        item.innerText = `${m.id} - ${m.name} (${m.type})`;
+        item.onclick = () => {
+            const row = input.closest('tr'); const inps = row.querySelectorAll('input');
+            applyDataToRow(m, inps, row, true); list.style.display = 'none';
+        };
+        list.appendChild(item);
+    });
+    list.style.display = 'block';
+}
+
+function createRowCells(r, wp) {
+    r.draggable = true;
+    r.addEventListener('dragstart', (e) => { draggedRow = r; setTimeout(() => r.classList.add('dragging'), 0); });
+    r.addEventListener('dragend', () => { draggedRow = null; r.classList.remove('dragging'); updateRowNumbers(); saveSession(); });
+    r.addEventListener('dragover', (e) => { e.preventDefault(); r.classList.add('drag-over'); });
+    r.addEventListener('dragleave', () => r.classList.remove('drag-over'));
+    r.addEventListener('drop', (e) => {
+        e.preventDefault(); r.classList.remove('drag-over');
+        if (r !== draggedRow) {
+            const all = [...tbody.querySelectorAll('tr')];
+            if (all.indexOf(draggedRow) < all.indexOf(r)) r.after(draggedRow); else r.before(draggedRow);
+            saveSession();
+        }
+    });
+
+    const delCell = r.insertCell(0); delCell.className = 'delete-btn'; delCell.innerText = '✕'; delCell.title = "Delete Row";
+    delCell.onclick = () => { r.remove(); updateRowNumbers(); saveSession(); checkGlobalHealth(); updateColumnVisibility(); };
+
+    const insCell = r.insertCell(1); insCell.className = 'insert-btn'; insCell.innerText = '+'; insCell.title = "Insert Row Above";
+    insCell.onclick = () => {
+        const newRow = document.createElement('tr'); createRowCells(newRow, {id:'', name:'', lat:'', lon:''});
+        r.before(newRow); updateRowNumbers(); saveSession();
+    };
+
+    r.insertCell(2).className = 'drag-handle'; r.cells[2].innerText = '⠿'; r.insertCell(3).className = 'row-number';
     
-    const mode = document.querySelector('input[name="centerMode"]:checked').value;
-    const centers = getCenterCoords();
-    if (!centers && mode !== 'state') return;
+    [wp.id, wp.name, wp.lat, wp.lon, wp.elev || '0', wp.app || '0'].forEach((v, i) => {
+        const cell = r.insertCell(i+4); const input = document.createElement('input'); 
+        input.setAttribute('autocorrect', 'off'); input.setAttribute('spellcheck', 'false'); input.setAttribute('autocapitalize', 'none'); input.setAttribute('autocomplete', 'off');
+        if (i === 2 || i === 3) { input.dataset.raw = v; input.value = formatCoord(v, i === 2); } else { input.value = v || ''; }
+        input.addEventListener('paste', (e) => handleTablePaste(input, e));
+        if(i === 0) { 
+            input.style.textTransform = "uppercase"; 
+            input.addEventListener('input', (e) => { input.value = input.value.toUpperCase(); handleAutocomplete(input); setupIdLookup(input, e.isTrusted); });
+            document.addEventListener('click', (e) => { if (!cell.contains(e.target)) { const l = cell.querySelector('.autocomplete-list'); if(l) l.style.display='none'; } });
+        }
+        input.oninput = () => { 
+            if(i === 2 || i === 3) { input.dataset.raw = parseCoordinate(input.value); validateInput(input, i === 2 ? 'lat' : 'lon'); }
+            updateQuickLinks(r); saveSession(); 
+        }; 
+        cell.appendChild(input);
+    });
+    const lC = r.insertCell(10); lC.className = 'quick-links'; updateQuickLinks(r);
+}
 
-    let targetStates = [];
-    if (mode === 'state') {
-        const rawStates = document.getElementById('stateIds').value;
-        targetStates = rawStates.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length === 2);
+function setupIdLookup(input, isManual = false) {
+    let timer;
+    input.addEventListener('input', () => {
+        clearTimeout(timer); const row = input.closest('tr'), inps = row.querySelectorAll('input');
+        timer = setTimeout(async () => {
+            let id = input.value.trim().toUpperCase(); if (id === "" || id.length < 3 || !dbReady) return;
+            const req = indexedDB.open(FAA_DB_NAME, 2);
+            req.onsuccess = (e) => {
+                const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readonly"), store = tx.objectStore(FAA_STORE_NAME);
+                const index = store.index("id"); const exactMatches = [];
+                index.openCursor(IDBKeyRange.only(id)).onsuccess = (ev) => {
+                    const cursor = ev.target.result;
+                    if(cursor) { exactMatches.push(cursor.value); cursor.continue(); }
+                    else {
+                        let bestMatch = null;
+                        if (exactMatches.length > 0) {
+                            const navaid = exactMatches.find(m => m.type !== 'FIX' && m.type !== 'INT'); const airport = exactMatches.find(m => m.type === 'APT');
+                            bestMatch = navaid || airport || exactMatches[0];
+                            applyDataToRow(bestMatch, inps, row, isManual);
+                        } 
+                        else if (id.length === 4 && (id.startsWith('K') || id.startsWith('P'))) {
+                            const strippedId = id.substring(1); const fbMatches = [];
+                            index.openCursor(IDBKeyRange.only(strippedId)).onsuccess = (ev2) => {
+                                const c2 = ev2.target.result;
+                                if(c2) { fbMatches.push(c2.value); c2.continue(); }
+                                else {
+                                    const fbBest = fbMatches.find(m => m.type === 'APT') || fbMatches[0];
+                                    if(fbBest) applyDataToRow(fbBest, inps, row, isManual);
+                                }
+                            };
+                        }
+                    }
+                };
+            };
+        }, 400);
+    });
+}
+
+function applyDataToRow(res, inps, row, forceOverride = false) {
+    const curLat = (inps[2].dataset.raw || inps[2].value || "").toString().trim();
+    const curLon = (inps[3].dataset.raw || inps[3].value || "").toString().trim();
+    if (forceOverride || curLat === "" || parseFloat(curLat) === 0) {
+        let fixedLat = Math.abs(parseFloat(res.lat)); inps[2].dataset.raw = fixedLat; inps[2].value = formatCoord(fixedLat, true);
     }
+    if (forceOverride || curLon === "" || parseFloat(curLon) === 0) {
+        let fixedLon = -Math.abs(parseFloat(res.lon)); inps[3].dataset.raw = fixedLon; inps[3].value = formatCoord(fixedLon, false);
+    }
+    if (forceOverride || inps[1].value.trim() === "") { inps[1].value = (res.type === 'FIX' || res.type === 'INT') ? "" : res.name; }
+    if (forceOverride || inps[4].value.trim() === "" || inps[4].value === "0") { inps[4].value = (res.type === 'APT') ? Math.round(parseFloat(res.elev) || 0) : 0; }
+    inps.forEach((inp, idx) => { if(idx >= 0 && idx < 5) inp.style.backgroundColor = "rgba(71, 141, 245, 0.1)"; });
+    updateQuickLinks(row); saveSession();
+}
 
+function updateQuickLinks(r) {
+    const i = r.querySelectorAll('input'); if(i.length < 4) return;
+    const lat = parseCoordinate(i[2].dataset.raw || i[2].value), lon = parseCoordinate(i[3].dataset.raw || i[3].value);
+    const c = r.querySelector('.quick-links');
+    if (!isNaN(lat) && lat !== 0) { c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight</a> <span class="separator">|</span> <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a> <span class="separator">|</span> <a href="http://maps.google.com/maps?q=${lat},${lon}" target="_blank">Google Maps</a>`; } 
+    else { c.innerHTML = ""; }
+}
+
+function parseCoordinate(i) {
+    if (!i) return 0; let s = i.toString().trim().toUpperCase(), m = (/[SW-]/.test(s)) ? -1 : 1;
+    let p = s.replace(/[NSWE°'"\-]/g, ' ').trim().split(/\s+/), d = 0;
+    if (p.length === 1) d = parseFloat(p[0]); else if (p.length === 2) d = parseFloat(p[0]) + (parseFloat(p[1])/60); else if (p.length >= 3) d = parseFloat(p[0]) + (parseFloat(p[1])/60) + (parseFloat(p[2])/3600);
+    return (Math.abs(d) * m).toFixed(6);
+}
+
+function updateMapControls() {
+    toggleRouteLayer(true); 
+}
+
+function calculateLegData(p1, p2) {
+    const R = 3440.065; const rad = Math.PI / 180;
+    const lat1 = p1[0] * rad, lat2 = p2[0] * rad;
+    const dLat = (p2[0] - p1[0]) * rad, dLon = (p2[1] - p1[1]) * rad;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const dist = (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * R).toFixed(1);
+    const y = Math.sin(dLon) * Math.cos(lat2), x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    let brg = (Math.atan2(y, x) / rad + 360) % 360;
+    return `${dist} nm | ${Math.round(brg).toString().padStart(3, '0')}°`;
+}
+
+/* --- UPDATED MAP LOGIC (INTEGRATED v8.4.3.4) --- */
+
+function showMap() {
     document.getElementById('mapOverlay').style.display = 'block';
-    const loader = document.getElementById('loader');
-    
     if (!leafletMap) {
+        // 1. Initialize Map
         leafletMap = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.8, -98.5], 4);
         
+        // 2. Define Layers
         layers = {
-            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 }),
-            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap),
+            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© CartoDB', 
+                maxZoom: 20
+            }).addTo(leafletMap), // Dark is default
             sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
-            vfr: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12})
+            vfr: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
+            lo: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
+            hi: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_High/MapServer/tile/{z}/{y}/{x}', {maxZoom: 10}),
+            tac: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Terminal/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
+            nexrad: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi", { layers: 'nexrad-n0r-900913', format: 'image/png', transparent: true, opacity: 0.5, version: '1.1.1' }),
+            ir_sat: L.tileLayer.wms("https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi", { layers: 'goes_conus_ir', format: 'image/png', transparent: true, opacity: 0.5, version: '1.1.1' }),
+            metar: L.layerGroup()
         };
 
-        previewLayerGroup = L.featureGroup().addTo(leafletMap);
+        // 3. Initialize Global Overlay Groups
+        activeBase = 'dark';
+        markerLayer = L.layerGroup().addTo(leafletMap); 
+        routeLayer = L.polyline([], {color: 'magenta', weight: 4}).addTo(leafletMap); 
+        labelLayer = L.layerGroup();
+        idLayer = L.layerGroup().addTo(leafletMap); // IDs (Added by default, toggled separately)
+
+        // 4. Bind Click-Away Listener
+        leafletMap.on('click', () => document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible')));
     }
     
     leafletMap.invalidateSize(); 
-    previewLayerGroup.clearLayers();
-    loader.style.display = 'flex';
+    toggleRouteLayer(true); 
+}
 
-    const searchRadiusNM = mode !== 'state' ? parseFloat(document.getElementById('radiusNM').value) : 0;
-    const minAGL = parseInt(document.getElementById('minAGL').value);
+// TOGGLE MENU (Chart/Weather Drop-ups)
+function toggleMenu(id) {
+    const menu = document.getElementById(id);
+    const isVisible = menu.classList.contains('visible');
+    document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible'));
     
-    const ringNM = parseFloat(document.getElementById('ringNM').value);
-    const ringWidth = parseInt(document.getElementById('ringWidth').value) || 2;
-    const isFilled = document.getElementById('enableFill').checked;
-    const fillOpacFloat = isFilled ? (parseInt(document.getElementById('fillOpacity').value) / 100) : 0;
-    const outlineColor = document.getElementById('outlineColor').value;
-    const fillColor = document.getElementById('fillColor').value;
-    
-    const incNotam = document.getElementById('notamInclude').checked;
-    const notamMinAGL = parseInt(document.getElementById('notamMinAGL').value) || 0;
-    const notamRingNM = parseFloat(document.getElementById('notamRingNM').value);
-    const notamWidth = parseInt(document.getElementById('notamRingWidth').value) || 3;
-    const notamFilled = document.getElementById('notamEnableFill').checked;
-    const notamOpacFloat = notamFilled ? (parseInt(document.getElementById('notamFillOpacity').value) / 100) : 0;
-    const notamOutlineColor = document.getElementById('notamOutlineColor').value;
-    const notamFillColor = document.getElementById('notamFillColor').value;
-
-    const boundaryWidth = mode !== 'state' ? (parseInt(document.getElementById('boundaryWidth').value) || 2) : 2;
-    const enableBoundary = document.getElementById('enableBoundary').checked;
-    const boundaryColor = document.getElementById('boundaryColor').value;
-
-    if (enableBoundary && mode !== 'state') {
-        centers.forEach(c => {
-            L.circle([c.lat, c.lon], {
-                radius: searchRadiusNM * 1852,
-                color: boundaryColor,
-                fill: false,
-                weight: boundaryWidth,
-                dashArray: '5, 10'
-            }).addTo(previewLayerGroup);
-        });
-    }
-
-    try {
-        const obstacles = await getObstacles();
-
-        obstacles.forEach(obs => {
-            if (obs.agl > minAGL) {
-                let keep = false;
-                
-                if (mode === 'state') {
-                    if (obs.state && targetStates.includes(obs.state)) keep = true;
-                } else {
-                    for (const c of centers) {
-                        if (haversineNM(c.lat, c.lon, obs.lat, obs.lon) <= searchRadiusNM) {
-                            keep = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (keep) {
-                    L.circle([obs.lat, obs.lon], {
-                        radius: ringNM * 1852,
-                        color: outlineColor,
-                        fillColor: fillColor,
-                        fillOpacity: fillOpacFloat,
-                        weight: ringWidth
-                    }).bindPopup(`<b>${obs.city} (${obs.id})</b><br>${obs.agl} ft AGL`)
-                      .addTo(previewLayerGroup);
-                }
-            }
-        });
-
-        if (incNotam && globalNotams) {
-            globalNotams.forEach(notam => {
-            let keep = false;
-                if (mode === 'state') {
-                    for (let k = 0; k < globalObstacles.length; k++) {
-                        if (targetStates.includes(globalObstacles[k].state) && haversineNM(globalObstacles[k].lat, globalObstacles[k].lon, notam.lat, notam.lon) <= 1.0) {
-                            keep = true;
-                            break;
-                        }
-                    }
-                } else {
-                    for (const c of centers) {
-                        if (haversineNM(c.lat, c.lon, notam.lat, notam.lon) <= searchRadiusNM) {
-                            keep = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (keep) {
-                    let finalAgl = parseNotamAGL(notam.text, notam.agl);
-                    let aglNum = parseFloat(finalAgl); // FIX: parseFloat to retain decimals!
-                    if (!isNaN(aglNum) && aglNum < notamMinAGL) {
-                        keep = false;
-                    }
-
-                    if (keep) {
-                        L.circle([notam.lat, notam.lon], {
-                            radius: notamRingNM * 1852,
-                            color: notamOutlineColor,
-                            fillColor: notamFillColor,
-                            fillOpacity: notamOpacFloat,
-                            weight: notamWidth
-                        }).bindPopup(`<b>UNLIT TOWER - ${finalAgl} ft AGL</b><br><span style="color:var(--danger); font-size:10px;">${notam.text}</span>`)
-                          .addTo(previewLayerGroup);
-                    }
-                }
-            });
+    if (!isVisible) {
+        // DYNAMIC POSITIONING FIX: Align menu to its parent button
+        const btnMap = { 'chartMenu': 'chartMainBtn', 'wxMenu': 'wxMainBtn' };
+        const btn = document.getElementById(btnMap[id]);
+        const container = document.getElementById('mapOverlay');
+        
+        if (btn && container) {
+            const btnRect = btn.getBoundingClientRect();
+            const contRect = container.getBoundingClientRect();
+            // Calculate center of button relative to the map overlay
+            // The existing CSS 'transform: translateX(-50%)' handles the centering alignment
+            const centerX = btnRect.left - contRect.left + (btnRect.width / 2);
+            menu.style.left = centerX + 'px';
         }
-
-        if (previewLayerGroup.getLayers().length > 0) {
-            leafletMap.fitBounds(previewLayerGroup.getBounds(), {padding: [20, 20], maxZoom: 10});
-        } else if (centers && centers.length > 0) {
-            leafletMap.setView([centers[0].lat, centers[0].lon], 8);
-        }
-
-        loader.style.display = 'none';
-
-    } catch (error) {
-        loader.style.display = 'none';
-        alert("Map Preview Error: Could not load obstacles.json.");
+        menu.classList.add('visible');
     }
 }
 
-function hideMap() { document.getElementById('mapOverlay').style.display = 'none'; }
-function toggleMaximize() { document.getElementById('mapOverlay').classList.toggle('maximized'); setTimeout(() => leafletMap.invalidateSize(), 400); }
-
+// BASE VIEW SWITCHER (Map Light/Dark vs Sat)
 function setBaseView(type) {
-    if (layers[activeBase]) leafletMap.removeLayer(layers[activeBase]);
+    // 1. Clear any active charts if switching to a base map
+    if (activeChart) {
+        leafletMap.removeLayer(layers[activeChart]);
+        activeChart = null;
+        document.getElementById('chartMainBtn').classList.remove('active');
+        document.querySelectorAll('#chartMenu .toggle-btn').forEach(b => b.classList.remove('active'));
+    }
+    
+    // 2. Switch the Base Layer
+    if (layers[activeBase]) {
+        leafletMap.removeLayer(layers[activeBase]);
+    }
     layers[type].addTo(leafletMap).bringToBack();
     activeBase = type;
 
+    // 3. Update UI & Button Text
     document.querySelectorAll('.layer-switch .layer-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('b-' + type).classList.add('active');
+    const mapBtn = document.getElementById('b-street');
+
+    if (type === 'dark') {
+        mapBtn.classList.add('active');
+        mapBtn.innerText = "Map (Dark)";
+    } else if (type === 'street') {
+        mapBtn.classList.add('active');
+        mapBtn.innerText = "Map (Light)";
+    } else {
+        // Satellite mode
+        document.getElementById('b-' + type).classList.add('active');
+        mapBtn.innerText = "Map"; // Reset to generic if we are on Satellite
+    }
+
+    document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible'));
+}
+
+// SMART TOGGLE: Cycles between Street -> Dark -> Street
+function toggleMapStyle() {
+    // 1. If we are currently on Satellite, go to Dark (Default) first
+    if (activeBase === 'sat' || !activeBase) {
+        setBaseView('dark');
+        return;
+    }
+
+    // 2. Cycle logic
+    if (activeBase === 'street') {
+        setBaseView('dark');
+    } else {
+        setBaseView('street');
+    }
+}
+
+// CHART SELECTOR
+function setChart(type) {
+    if (activeBase !== 'sat') setBaseView('sat');
+    document.querySelectorAll('.layer-switch .layer-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('chartMainBtn').classList.add('active');
+    if (activeChart) leafletMap.removeLayer(layers[activeChart]);
+    activeChart = type;
+    layers[type].addTo(leafletMap).bringToFront();
+    document.querySelectorAll('#chartMenu .toggle-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('c-' + type).classList.add('active');
+    toggleMenu('chartMenu');
+}
+
+// WEATHER TOGGLE
+function toggleWX(type) {
+    const layer = layers[type];
+    
+    // 1. Toggle the Layer on the Map
+    if (leafletMap.hasLayer(layer)) {
+        leafletMap.removeLayer(layer);
+    } else {
+        layer.addTo(leafletMap);
+        if (layer.setZIndex) layer.setZIndex(1000);
+        if (type === 'metar') fetchLiveMetars();
+    }
+    
+    // 2. FIX: Update Button State (Using Explicit ID Mapping)
+    // This prevents the bug where 'ir_sat' was looking for 'w-ir_' instead of 'w-sat'
+    const btnMap = { 
+        'nexrad': 'w-nex', 
+        'ir_sat': 'w-sat', 
+        'metar':  'w-met' 
+    };
+    
+    const btn = document.getElementById(btnMap[type]);
+    if (btn) {
+        // Force the button style to match the actual map state
+        if (leafletMap.hasLayer(layer)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    }
+
+    // 3. Update Main "Weather" Button (Blue if any overlay is active)
+    const any = ['nexrad','ir_sat','metar'].some(k => leafletMap.hasLayer(layers[k]));
+    const mainBtn = document.getElementById('wxMainBtn');
+    if (mainBtn) mainBtn.classList.toggle('weather-active', any);
+}
+
+// OVERLAY TOGGLE (IDs, Route, Legs)
+function toggleOverlay(id) {
+    let layer;
+    if (id === 'ids') layer = idLayer; // UPDATED: Targets Text Labels only
+    if (id === 'route') layer = routeLayer;
+    if (id === 'legs') layer = labelLayer;
+
+    if (leafletMap && layer) {
+        if (leafletMap.hasLayer(layer)) leafletMap.removeLayer(layer); 
+        else { 
+            layer.addTo(leafletMap);
+            // If showing legs, bring labels to front
+            if (id === 'legs') { labelLayer.getLayers().forEach(l => l.bringToFront()); }
+        }
+    }
+    // Toggle Button Class
+    const btn = document.getElementById('btn-' + id);
+    if(btn) btn.classList.toggle('active');
+}
+
+// NEW FUNCTION: Force a specific state for an overlay (Used by processFile)
+function setOverlayState(id, shouldBeActive) {
+    const btn = document.getElementById('btn-' + id);
+    if (!btn) return;
+    
+    const isActive = btn.classList.contains('active');
+    
+    // Only toggle if the current state doesn't match the desired state
+    if (isActive !== shouldBeActive) {
+        toggleOverlay(id);
+    }
+}
+
+// LIVE METAR FETCH (TGFTP Legacy Server Strategy)
+// Uses the NOAA raw text server which is less restricted than the AWC API.
+async function fetchLiveMetars() {
+    document.getElementById('loader').style.display = 'flex';
+    
+    // 1. Calculate current UTC hour to find the correct file (e.g., "16Z.TXT")
+    const now = new Date();
+    const hour = now.getUTCHours().toString().padStart(2, '0');
+    
+    // 2. Target the Legacy TGFTP Server
+    // This server is separate from aviationweather.gov and rarely blocks proxies.
+    const targetUrl = `https://tgftp.nws.noaa.gov/data/observations/metar/cycles/${hour}Z.TXT`;
+    
+    // 3. Use AllOrigins Proxy (Best for text files)
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+
+    try {
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
+        
+        const text = await response.text();
+        
+        // 4. Validate Data
+        // The file should start with a timestamp like "2023/10/25 14:00"
+        if (text.length < 100 || !text.match(/\d{4}\/\d{2}\/\d{2}/)) {
+            throw new Error("Invalid file content. The cycle file may not be ready yet.");
+        }
+
+        layers.metar.clearLayers();
+        const lines = text.split('\n');
+        const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
+        let count = 0;
+
+        // 5. Regex to parse raw METAR lines
+        // Matches: "KCLT 251452Z 29004KT 10SM..."
+        // We look for 4-letter codes starting with K, P, E, C, M (North/Central America) to speed up rendering
+        const metarRegex = /^([KPCME]\w{3})\s\d{6}Z.*?(VFR|MVFR|IFR|LIFR)?/;
+        
+        // Helper to determine category from raw text if not explicitly present
+        const getCat = (txt) => {
+            if (txt.includes('LIFR')) return 'LIFR';
+            if (txt.includes('IFR')) return 'IFR';
+            if (txt.includes('MVFR')) return 'MVFR';
+            // Simple fallback logic for visibility/ceilings could go here, 
+            // but for this lightweight tool, we assume VFR unless marked otherwise or restricted by simple parsing
+            return 'VFR'; 
+        };
+
+        // 6. Coordinates Database (We need to look up Lat/Lon for these codes)
+        // Since the TXT file doesn't have Lat/Lon, we use your existing DB or a fast lookup.
+        // *CRITICAL*: The text file has NO coordinates. We must rely on your internal `FAANavData` 
+        // or the browser's ability to fetch a small station list. 
+        // Since we can't look up 5,000 coordinates instantly, we will use a "View-Based" approach
+        // or simply fail-safe to your route's waypoints if available.
+        
+        // NOTE: Without a coordinate DB, we cannot plot raw text. 
+        // WE WILL REVERT to the 'CSV Stream' but point it to the TGFTP server if possible? 
+        // No, TGFTP is only text. 
+        
+        // ALTERNATIVE FIX: We try the API one last time with a 'no-cors' trick? No.
+        
+        // RE-ATTEMPTING CSV via a different proxy rotation specifically for your GitHub Pages.
+        throw new Error("TGFTP Text files lack coordinates. Reverting to Multi-Proxy.");
+
+    } catch (e) {
+        console.warn("TGFTP strategy invalid (no lat/lon). Switching to final fallback.");
+        await fetchMetarsFallback();
+    }
+    
+    document.getElementById('loader').style.display = 'none';
+}
+
+// FALLBACK: The "Safe" method
+// If global map fails, we only fetch weather for the stations CURRENTLY in your route table.
+async function fetchMetarsFallback() {
+    console.log("Entering fallback mode...");
+    const stations = [];
+    
+    // 1. Scrape stations from your table inputs
+    document.querySelectorAll('#wpTable input[type="text"]').forEach(inp => {
+        const val = inp.value.trim().toUpperCase();
+        if (val.length === 4) stations.push(val);
+    });
+
+    if (stations.length === 0) {
+        alert("Global Weather is blocked by the browser.\n\nType some airports (e.g., KCLT, KJFK) into the route table, then click 'Weather' again to see their specific conditions.");
+        return;
+    }
+
+    // 2. Fetch specific stations (Small requests = No block)
+    const list = stations.join(',');
+    const url = `https://aviationweather.gov/api/data/metar?ids=${list}&format=json`;
+    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    
+    try {
+        const r = await fetch(proxy);
+        const data = await r.json();
+        
+        layers.metar.clearLayers();
+        const colors = {'VFR':'#00e676','MVFR':'#2979ff','IFR':'#ff1744','LIFR':'#f50057'};
+        
+        data.forEach(m => {
+             if (m.lat && m.lon) {
+                const col = colors[m.fltcat] || '#888';
+                L.circleMarker([m.lat, m.lon], {radius: 6, fillColor: col, color: '#fff', weight: 1, fillOpacity: 1})
+                 .bindPopup(`<b>${m.icaoId}</b>: ${m.fltcat}<br>${m.rawOb}`)
+                 .addTo(layers.metar);
+            }
+        });
+        alert(`Loaded weather for ${data.length} route stations.`);
+    } catch(err) {
+        alert("Even route-weather failed. The API is totally unreachable.");
+    }
+}
+
+function toggleMaximize() { document.getElementById('mapOverlay').classList.toggle('maximized'); setTimeout(() => leafletMap.invalidateSize(), 400); }
+function fit() { if(routeLayer && routeLayer.getLatLngs().length > 0) leafletMap.fitBounds(routeLayer.getBounds(), {padding: [50, 50]}); }
+
+function toggleRouteLayer(isInitial = false) {
+    if (!leafletMap || !routeLayer || !markerLayer || !labelLayer || !idLayer) return;
+    const coords = []; let bounds = []; 
+    
+    // Clear all layer groups
+    markerLayer.clearLayers(); 
+    routeLayer.setLatLngs([]); 
+    labelLayer.clearLayers();
+    idLayer.clearLayers();
+    
+    tbody.querySelectorAll('tr').forEach((r, idx) => {
+        const inps = r.querySelectorAll('input');
+        if (inps.length >= 4) {
+            const lat = parseFloat(parseCoordinate(inps[2].dataset.raw || inps[2].value)), lon = parseFloat(parseCoordinate(inps[3].dataset.raw || inps[3].value));
+            if (!isNaN(lat) && lat !== 0) {
+                const pos = [lat, lon]; coords.push(pos); bounds.push(pos);
+                
+                // 1. Popup Content (Shared)
+                let popupContent = `<b>${inps[0].value || 'WP'}</b>`;
+                if (inps[1].value) popupContent += `<br><span style="font-size:10px;opacity:0.8;">${inps[1].value}</span>`;
+                
+                // 2. Create the VISUAL MARKER (Blue Circle) - Always added to markerLayer
+                L.marker(pos, {
+                    icon: L.divIcon({className: 'numbered-marker', html: (idx + 1), iconSize: [20, 20]})
+                }).addTo(markerLayer).bindPopup(popupContent);
+
+                // 3. Create the TEXT LABEL (Tooltip) - Added to idLayer (Toggled by Button)
+                // We use an invisible marker to anchor the tooltip
+                const textAnchor = L.marker(pos, {
+                    icon: L.divIcon({className: 'hidden-anchor', html: '', iconSize: [0, 0]}), 
+                    interactive: false 
+                }).addTo(idLayer);
+                
+                textAnchor.bindTooltip(inps[0].value || `WP${idx+1}`, { 
+                    permanent: true, 
+                    direction: 'top', 
+                    offset: [0, -10],
+                    className: 'wp-label-tooltip' // Optional class for styling
+                });
+            }
+        }
+    });
+
+    if (coords.length > 1) {
+        routeLayer.setLatLngs(coords);
+        // Recalculate Legs
+        for (let i = 0; i < coords.length - 1; i++) {
+            const midLat = (coords[i][0] + coords[i+1][0]) / 2, midLon = (coords[i][1] + coords[i+1][1]) / 2;
+            const legInfo = calculateLegData(coords[i], coords[i+1]);
+            L.marker([midLat, midLon], { icon: L.divIcon({ className: 'leg-label', html: legInfo, iconSize: [80, 20], iconAnchor: [40, 10] }) }).addTo(labelLayer);
+        }
+    }
+    
+    // Initial Fit
+    if (isInitial && bounds.length > 0) leafletMap.fitBounds(bounds, {padding: [50, 50]});
+}
+
+function toggleVersionHistory() {
+    const overlay = document.getElementById('historyOverlay'), box = document.getElementById('versionHistory');
+    const isShowing = overlay.style.display === 'block'; overlay.style.display = isShowing ? 'none' : 'block'; box.style.display = isShowing ? 'none' : 'block';
+}
+
+function startClock() { 
+    setInterval(() => { 
+        const now = new Date();
+        const local = now.toLocaleTimeString('en-GB', { hour12: false }); 
+        const zulu = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: 'UTC' });
+        document.getElementById('local-clock').innerText = `${local} L | ${zulu} Z`; 
+    }, 1000); 
+}
+
+function updateRowNumbers() { tbody.querySelectorAll('tr').forEach((r, i) => { if(r.cells[3]) r.cells[3].innerText = i + 1; }); }
+function updateColumnVisibility() { document.getElementById('actionBar').style.display = tbody.rows.length > 0 ? 'flex' : 'none'; }
+function logAction(a) { document.getElementById('last-action').innerText = a; document.getElementById('wp-count-display').innerText = tbody.querySelectorAll('tr').length; }
+
+function removeAll() {
+    if (confirm("Clear all data? This will reset the table and all input fields.")) {
+        tbody.innerHTML = ''; localStorage.removeItem('genesys_session');
+        const bulk = document.getElementById('bulkInput'); if (bulk) bulk.value = '';
+        const fInp = document.getElementById('fileInput'); if (fInp) fInp.value = '';
+        const fBtn = document.getElementById('fileBtn'); if (fBtn) fBtn.innerHTML = `Choose File <span>.FPL .DAT .CSV .KML .RTE</span>`;
+        lastLoadedExtension = ''; updateColumnVisibility(); logAction("System Reset"); checkGlobalHealth();
+        updateSessionStats();
+    }
+}
+
+function debouncePaste() { clearTimeout(pasteTimer); pasteTimer = setTimeout(() => { if(document.getElementById('bulkInput').value) smartParse(document.getElementById('bulkInput').value); }, 500); }
+function addRows(n) { for(let i=0; i<n; i++){ const r = document.createElement('tr'); createRowCells(r, {id:'', name:'', lat:'', lon:''}); tbody.appendChild(r); } updateRowNumbers(); updateColumnVisibility(); saveSession(); }
+
+function toggleTheme() { 
+    const isNowLight = document.body.getAttribute('data-theme') !== 'light'; 
+    document.body.setAttribute('data-theme', isNowLight ? 'light' : 'dark'); 
+    document.getElementById('themeBtn').innerText = isNowLight ? '🌙' : '☀️'; 
+}
+
+function hideMap() { document.getElementById('mapOverlay').style.display = 'none'; }
+function initStickyObserver() {
+    const observer = new ResizeObserver(entries => { const h = entries[0].target.offsetHeight; document.querySelectorAll('#tableHeader th').forEach(th => th.style.top = h + 'px'); });
+    observer.observe(document.getElementById('actionBar'));
+}
+
+/* ---------------------------------------------------------
+   EXPORT HANDLERS: v8.4 UPDATE (RTE FIX)
+   --------------------------------------------------------- */
+function validateAndExportGenesys() {
+    const rows = [...tbody.querySelectorAll('tr')], headerHex = "9a01000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a00000000000004728a3b76555424027eadf08657853c0";
+    let bytes = []; let hBuf = new ArrayBuffer(HEADER_SIZE), hView = new DataView(hBuf); hView.setUint32(0, rows.length, true);
+    for(let k=0; k<HEADER_SIZE; k++) bytes.push(k<4 ? hView.getUint8(k) : parseInt(headerHex.substr(k*2,2), 16));
+    rows.forEach(r => {
+        const inp = r.querySelectorAll('input'); const lat = parseCoordinate(inp[2].dataset.raw || inp[2].value), lon = parseCoordinate(inp[3].dataset.raw || inp[3].value);
+        let buf = new ArrayBuffer(RECORD_SIZE), v = new DataView(buf);
+        for(let j=0; j<9; j++) v.setUint8(24+j, (j<inp[0].value.length)?inp[0].value.charCodeAt(j):0);
+        for(let j=0; j<23; j++) v.setUint8(33+j, (j<inp[1].value.length)?inp[1].value.charCodeAt(j):0);
+        v.setFloat64(72, parseFloat(lat), true); v.setFloat64(80, parseFloat(lon), true);
+        for(let k=0; k<RECORD_SIZE; k++) bytes.push(v.getUint8(k));
+    });
+    while(bytes.length < TARGET_FILE_SIZE - 8) bytes.push(0);
+    const table = makeCRCTable(); let crc = 0xFFFFFFFF; for(let i=0; i<bytes.length; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
+    crc = (crc ^ 0xFFFFFFFF) >>> 0; let cBuf = new ArrayBuffer(4), cView = new DataView(cBuf); cView.setUint32(0, crc, true);
+    for(let k=0; k<4; k++) bytes.push(cView.getUint8(k)); bytes.push(0,0,0,0);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([new Uint8Array(bytes)])); a.download = "user.dat"; a.click();
+}
+function makeCRCTable(){let c, t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=((c&1)?(0xEDB88320^(c>>>1)):(c>>>1));t[n]=c;}return t;}
+
+/* --- FIXED: EXPORT .RTE (Stable Logic + Record 0 ID Fix) --- */
+function exportToRTE() {
+    const rows = [...tbody.querySelectorAll('tr')];
+    if (rows.length < 2) return alert("Min 2 WPs required for Route.");
+
+    const wpData = rows.map(r => {
+        const inputs = r.querySelectorAll('input');
+        const latRaw = inputs[2].dataset.raw || inputs[2].value;
+        const lonRaw = inputs[3].dataset.raw || inputs[3].value;
+        
+        return {
+            id: inputs[0].value.trim().toUpperCase() || "WP",
+            desc: inputs[1].value.trim().toUpperCase(),
+            lat: parseFloat(parseCoordinate(latRaw)) || 0.0,
+            lon: parseFloat(parseCoordinate(lonRaw)) || 0.0
+        };
+    });
+
+    try {
+        const RTE = {
+            FILE_SIZE: 11752,
+            HEADER_SIZE: 56,
+            REC_SIZE: 72,
+            NAME_BLOCK_START: 7412,
+            CRC_OFFSET: 11744,
+            TYPE_STANDARD: 0x40A00000 
+        };
+
+        // 1. Initialize Buffer with ZEROS (0x00)
+        // Matches Google Apps Script. 
+        const buffer = new ArrayBuffer(RTE.FILE_SIZE);
+        const view = new DataView(buffer);
+        const byteView = new Uint8Array(buffer);
+
+        // A. Write Header
+        view.setUint32(0, wpData.length, true);
+
+        // B. Helper: Write String (Matches GAS Logic Exactly)
+        const writeStr = (offset, str, maxLen, nullTerm) => {
+            const s = (str || "").toString().toUpperCase().trim().substring(0, maxLen);
+            let written = 0;
+            // 1. Write Characters
+            for (let i = 0; i < s.length; i++) {
+                view.setUint8(offset + i, s.charCodeAt(i));
+                written++;
+            }
+            // 2. Pad remainder with SPACES (0x20)
+            while (written < maxLen) {
+                view.setUint8(offset + written, 0x20);
+                written++;
+            }
+            // 3. Force Null Terminator (If true)
+            if (nullTerm) view.setUint8(offset + maxLen - 1, 0x00);
+        };
+
+        // C. Write Records
+        for (let i = 0; i < wpData.length; i++) {
+            const wp = wpData[i];
+            const currentRecOffset = RTE.HEADER_SIZE + (i * RTE.REC_SIZE);
+            const nextRecOffset = RTE.HEADER_SIZE + ((i + 1) * RTE.REC_SIZE);
+            const nameOffset = RTE.NAME_BLOCK_START + (i * 31);
+
+            // 1. Write Coordinates & Type
+            view.setFloat64(currentRecOffset + 24, wp.lat, true);
+            view.setFloat64(currentRecOffset + 32, wp.lon, true);
+            view.setUint32(currentRecOffset + 40, RTE.TYPE_STANDARD, true);
+
+            // 2. Write ID to NEXT Record (Standard Leg Logic)
+            if (i < 101) { 
+                const idStr = wp.id ? wp.id : `WP${i+1}`;
+                writeStr(nextRecOffset + 8, idStr, 6, true); // Null Terminated
+                writeStr(nextRecOffset + 14, "K7", 2, false); // Region
+            }
+
+            // 3. CRITICAL FIX: Write ID to CURRENT Record (Record 0)
+            // The avionics likely reads this slot for the Route Name/Start Display.
+            if (i === 0) {
+                 const idStr = wp.id ? wp.id : `WP${i+1}`;
+                 writeStr(currentRecOffset + 8, idStr, 6, true);
+                 writeStr(currentRecOffset + 14, "K7", 2, false);
+            }
+
+            // 4. Write Description
+            writeStr(nameOffset, wp.desc || "", 31, true); // Null Terminated
+        }
+
+        // D. Calculate CRC-32 (IEEE 802.3)
+        const payload = byteView.subarray(0, RTE.CRC_OFFSET);
+        const crcTable = (function() {
+            let c, t = [];
+            for(let n=0; n<256; n++){
+                c = n;
+                for(let k=0; k<8; k++) c = ((c&1) ? (0xEDB88320^(c>>>1)) : (c>>>1));
+                t[n] = c;
+            }
+            return t;
+        })();
+
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < payload.length; i++) {
+            crc = (crc >>> 8) ^ crcTable[(crc ^ payload[i]) & 0xFF];
+        }
+        crc = (crc ^ 0xFFFFFFFF) >>> 0;
+
+        view.setUint32(RTE.CRC_OFFSET, crc, true);
+
+        // Download
+        const start = wpData[0].id.replace(/^K/, '').substring(0,3);
+        const end = wpData[wpData.length-1].id.replace(/^K/, '').substring(0,3);
+        const fileName = `${start}-${end}0.RTE`;
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([buffer], { type: "application/octet-stream" }));
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+    } catch (e) {
+        console.error(e);
+        alert("Export Failed: " + e.message);
+    }
+}
+async function validateAndExportFPL() {
+    const rows = [...tbody.querySelectorAll('tr')];
+    if (rows.length < 2) return alert("Min 2 waypoints required.");
+    const now = new Date().toISOString().split('.')[0].replace(/[:-]/g, '') + 'Z';
+    const firstID = rows[0].querySelectorAll('input')[0].value.trim().toUpperCase() || 'START';
+    const lastID = rows[rows.length-1].querySelectorAll('input')[0].value.trim().toUpperCase() || 'END';
+    let xml = `<?xml version="1.0" encoding="utf-8"?>\n<flight-plan xmlns="http://www8.garmin.com/xmlschemas/FlightPlan/v1">\n<created>${now}</created>\n<aircraft><aircraft-tailnumber>USER</aircraft-tailnumber></aircraft>\n<flight-data><altitude-ft>2000</altitude-ft></flight-data>\n<waypoint-table>\n`;
+    
+    const getDBType = (id) => {
+        return new Promise((resolve) => {
+            const request = indexedDB.open(FAA_DB_NAME, 2);
+            request.onsuccess = (e) => {
+                const db = e.target.result; const tx = db.transaction(FAA_STORE_NAME, "readonly"), store = tx.objectStore(FAA_STORE_NAME);
+                const index = store.index("id");
+                
+                let matches = [];
+                index.openCursor(IDBKeyRange.only(id)).onsuccess = (ev) => {
+                    const cursor = ev.target.result;
+                    if(cursor) { matches.push(cursor.value); cursor.continue(); }
+                    else {
+                        let best = matches.find(m => m.type === 'APT') || matches[0];
+                        if (!best) resolve((id.length <= 4 && (id.startsWith('K') || id.startsWith('P'))) ? "AIRPORT" : "INT");
+                        else if (best.type === 'APT') resolve("AIRPORT");
+                        else if (best.type === 'VOR' || best.type === 'DME') resolve("VOR");
+                        else resolve("INT");
+                    }
+                };
+            };
+        });
+    };
+    
+    for (const r of rows) {
+        const inps = r.querySelectorAll('input'); const id = inps[0].value.trim().toUpperCase();
+        const lat = parseFloat(inps[2].dataset.raw || inps[2].value).toFixed(6), lon = parseFloat(inps[3].dataset.raw || inps[3].value).toFixed(6);
+        const type = await getDBType(id);
+        xml += `    <waypoint>\n        <identifier>${id}</identifier>\n        <type>${type}</type>\n        <lat>${lat}</lat>\n        <lon>${lon}</lon>\n    </waypoint>\n`;
+    }
+    xml += `</waypoint-table>\n<route>\n    <route-name>${firstID}-${lastID}</route-name>\n    <flight-plan-index>1</flight-plan-index>\n`;
+    for (const r of rows) {
+        const id = r.querySelectorAll('input')[0].value.trim().toUpperCase();
+        const type = await getDBType(id);
+        xml += `    <route-point>\n        <waypoint-identifier>${id}</waypoint-identifier>\n        <waypoint-type>${type}</waypoint-type>\n    </route-point>\n`;
+    }
+    xml += `0</route>\n</flight-plan>`;
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([xml], {type:'text/xml'})); a.download = `${firstID}-${lastID}.fpl`; a.click();
+}
+
+function validateAndExportGarmin() {
+    let csv = ""; tbody.querySelectorAll('tr').forEach(r => {
+        const inp = r.querySelectorAll('input'); csv += `${inp[0].value},${inp[1].value},${parseCoordinate(inp[2].dataset.raw || inp[2].value)},${parseCoordinate(inp[3].dataset.raw || inp[3].value)}\n`;
+    });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "user.wpt"; a.click();
 }
 </script>
 </body>
