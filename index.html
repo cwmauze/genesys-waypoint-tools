@@ -31,24 +31,31 @@
         /* ---------------------------------------------------------
            SECTION: CORE LAYOUT
            --------------------------------------------------------- */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: var(--bg); color: var(--text); transition: background 0.3s; }
-        .container { max-width: 1500px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 3px solid var(--bg); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+        .container { max-width: 1500px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; transition: background 0.3s, box-shadow 0.3s; }
         .version-subtitle { font-size: 11px; color: #90949c; margin-top: 4px; display: inline-block; font-weight: normal; cursor: pointer; text-decoration: underline; }
         .contact-link, .project-link { font-size: 11px; color: #90949c; margin-left: 15px; text-decoration: underline; }
         .header-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
         h2 { margin: 0; color: var(--primary); line-height: 1; }
         
         .top-info-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
-        .instructions { background: rgba(71, 141, 245, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary); font-size: 14px; line-height: 1.5; height: 100%; box-sizing: border-box; }
+        .instructions { background: rgba(71, 141, 245, 0.06); padding: 16px 20px; border-radius: 8px; border-left: 5px solid var(--primary); font-size: 13px; line-height: 1.6; height: 100%; box-sizing: border-box; box-shadow: inset 0 0 0 1px rgba(71, 141, 245, 0.15); }
         
         /* UPDATED SESSION CARD STYLE */
         .session-status-card { background: var(--secondary); padding: 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; height: 100%; box-sizing: border-box; }
         
         .status-line { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .status-line > span:first-child { color: #90949c; font-weight: 500; }
+        .status-line > div > span { font-weight: 600; letter-spacing: 0.3px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; display: inline-block; flex-shrink: 0; }
         .status-dot.loading { background: var(--dispatch); animation: dbPulse 1s infinite; }
-        .status-dot.ready { background: var(--success); }
+        .status-dot.ready { background: var(--success); animation: readyBreathe 3s ease-in-out infinite; }
         .status-dot.error { background: var(--danger); }
+        @keyframes readyBreathe { 0%, 100% { opacity: 1; box-shadow: 0 0 2px rgba(40, 167, 69, 0.4); } 50% { opacity: 0.5; box-shadow: 0 0 0px rgba(40, 167, 69, 0); } }
         .status-dot.danger-pulse { background: var(--danger); animation: errorPulse 0.8s infinite; }
         @keyframes errorPulse { 0% { box-shadow: 0 0 0 0px rgba(251, 97, 97, 0.7); } 100% { box-shadow: 0 0 0 8px rgba(251, 97, 97, 0); } }
         @keyframes dbPulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
@@ -57,11 +64,12 @@
            SECTION: ACTION BAR BUTTONS
            --------------------------------------------------------- */
         .action-bar { 
-            background: var(--card) !important; padding: 15px; border-radius: 8px; margin-bottom: 20px; 
+            background: rgba(36, 37, 38, 0.85) !important; padding: 15px; border-radius: 8px; margin-bottom: 20px; 
             display: none; flex-wrap: wrap; gap: 10px; align-items: center;
-            position: sticky; top: 0; z-index: 1002; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2); border-bottom: 3px solid var(--primary);
+            position: sticky; top: 0; z-index: 1002; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3); border-bottom: 3px solid var(--primary);
         }
+        [data-theme="light"] .action-bar { background: rgba(255, 255, 255, 0.85) !important; }
         
 		/* UPDATED: Larger Vertical divider for the Action Bar */
 		.action-divider {
@@ -80,27 +88,40 @@
            --------------------------------------------------------- */
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; border: 1px solid var(--border); }
         th, td { border: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: middle; position: relative; }
-        thead th { background-color: var(--secondary) !important; font-weight: 600; font-size: 11px; user-select: none; line-height: 1.2; position: sticky; z-index: 1001; padding-top: 6px; padding-bottom: 6px; border-right: 1px solid var(--header-sep); }
-        .clickable-header { cursor: pointer; text-decoration: underline dotted; }
-        .clickable-header:hover { background-color: var(--primary) !important; color: white; }
+        thead th { background-color: var(--secondary) !important; font-weight: 600; font-size: 11px; user-select: none; line-height: 1.2; position: sticky; z-index: 1001; padding-top: 6px; padding-bottom: 6px; border-right: 1px solid var(--header-sep); box-shadow: 0 4px 6px rgba(0,0,0,0.15); border-bottom: 2px solid var(--primary) !important; }
+        .clickable-header { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; transition: background-color 0.2s ease, color 0.2s ease; }
+        .clickable-header:hover { background-color: var(--primary) !important; color: white; text-decoration: none; }
+        .clickable-header:active { background-color: #3670c9 !important; }
 
         #wpTable tbody tr:nth-child(even) { background-color: var(--stripe); }
+        #wpTable tbody tr:hover { background-color: rgba(71, 141, 245, 0.08); }
 
-        input { width: 95%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; background: var(--card); color: var(--text); box-sizing: border-box; }
+        input { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; background: var(--card); color: var(--text); box-sizing: border-box; transition: border-color 0.2s, box-shadow 0.2s; }
+        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(71, 141, 245, 0.25); }
         .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px; margin-bottom: 5px; transition: all 0.2s ease; text-align: center; color: white; display: inline-block; vertical-align: middle; }
+        .btn:hover { filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        .btn:active { transform: translateY(0); filter: brightness(0.95); box-shadow: none; }
         .btn span { display: block; font-size: 10px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
         .btn-secondary { background: var(--secondary); color: var(--text); }
-        .btn-danger { background: var(--danger); }
-        a { color: var(--link); text-decoration: none; font-weight: 500; font-size: 10px; }
-        .separator { margin: 0 8px; color: #888; font-weight: bold; pointer-events: none; }
+        .btn-danger { background: var(--danger); border: 1px solid transparent; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .btn-danger:hover { background: #ff4a4a; border-color: #ff4a4a; box-shadow: 0 4px 12px rgba(251, 97, 97, 0.4); transform: translateY(-1px); }
+        .btn-danger:active { transform: translateY(1px); box-shadow: none; filter: brightness(0.9); }
+        a { color: var(--link); text-decoration: none; font-weight: 500; font-size: 10px; transition: color 0.15s ease, text-decoration 0.15s ease; }
+        a:hover { color: var(--primary); text-decoration: underline; }
+        .quick-links { display: flex; gap: 8px; align-items: center; justify-content: center; }
+        .ql-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: rgba(71, 141, 245, 0.08); border: 1px solid transparent; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); color: var(--link); }
+        .ql-btn:hover { background: var(--primary); color: white; border-color: var(--primary); transform: translateY(-1px); box-shadow: 0 2px 6px rgba(71, 141, 245, 0.3); }
+        .ql-btn:active { transform: translateY(0); box-shadow: none; filter: brightness(0.9); }
         
-        .delete-btn { color: var(--danger); cursor: pointer; font-weight: bold; font-size: 14px; opacity: 0.4; transition: opacity 0.2s; text-align: center; user-select: none; }
-        .delete-btn:hover { opacity: 1; }
-        .insert-btn { color: var(--primary); cursor: pointer; font-weight: bold; font-size: 14px; opacity: 0.4; transition: opacity 0.2s; text-align: center; user-select: none; }
-        .insert-btn:hover { opacity: 1; }
-        .drag-handle { cursor: grab; text-align: center; color: var(--primary); font-size: 16px; user-select: none; opacity: 0.7; }
-        tr.dragging { opacity: 0.2; }
-        tr.drag-over { border-top: 3px solid var(--primary) !important; background: rgba(71, 141, 245, 0.05); }
+        .delete-btn { color: var(--danger); cursor: pointer; font-weight: bold; font-size: 14px; opacity: 0.4; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); text-align: center; user-select: none; }
+        .delete-btn:hover { opacity: 1; transform: scale(1.3); }
+        .insert-btn { color: var(--primary); cursor: pointer; font-weight: bold; font-size: 14px; opacity: 0.4; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); text-align: center; user-select: none; }
+        .insert-btn:hover { opacity: 1; transform: scale(1.3); }
+        .drag-handle { cursor: grab; text-align: center; color: var(--primary); font-size: 16px; user-select: none; opacity: 0.6; transition: all 0.15s ease; }
+        .drag-handle:hover { opacity: 1; transform: scale(1.2); color: var(--link); }
+        .drag-handle:active { cursor: grabbing; transform: scale(1.05); opacity: 0.8; }
+        tr.dragging { opacity: 0.6; background-color: var(--secondary) !important; outline: 2px dashed var(--primary); outline-offset: -2px; }
+        tr.drag-over { border-top: 3px solid var(--primary) !important; background: rgba(71, 141, 245, 0.15); }
         .row-number { text-align: center; font-family: monospace; opacity: 0.7; font-size: 11px; }
 
         /* --- UPDATED MAP CONTAINER (Replaces Old Overlay) --- */
@@ -108,31 +129,43 @@
             display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 80%; 
             background: var(--card); z-index: 3000; border: 2px solid var(--primary); 
             border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            animation: mapPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+        }
+        @keyframes mapPopIn {
+            0% { opacity: 0; transform: scale(0.97); }
+            100% { opacity: 1; transform: scale(1); }
         }
         #mapOverlay.maximized { width: 100vw; height: 100vh; top: 0; left: 0; border: none; border-radius: 0; }
         #map { width: 100%; height: 100%; background: #222; }
 
         .numbered-marker { background: var(--primary); border: 2px solid white; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 20px; font-size: 10px; }
         
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 5999; }
-        #versionHistory { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); border: 2px solid var(--primary); padding: 25px; border-radius: 12px; font-size: 12px; z-index: 6000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text); line-height: 1.6; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); z-index: 5999; backdrop-filter: blur(4px); }
+        #versionHistory { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); border: 2px solid var(--primary); padding: 25px; border-radius: 12px; font-size: 12px; z-index: 6000; box-shadow: 0 15px 40px rgba(0,0,0,0.7); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text); line-height: 1.6; animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1); }
+        @keyframes modalPop { 0% { opacity: 0; transform: translate(-50%, -45%) scale(0.95); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
-        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
-        .file-upload-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-        .btn-upload { background: var(--secondary); color: var(--text); border: 1px solid var(--border); width: 100%; display: block; margin: 0; }
-        .btn-upload:hover { background: var(--primary); color: white; }
+        .file-upload-wrapper { position: relative; overflow: hidden; display: flex; width: 100%; align-items: stretch; cursor: pointer; }
+        .file-upload-wrapper input[type="file"] { position: absolute; left: 0; top: 0; bottom: 0; right: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 10; font-size: 0; color: transparent; }
+        .btn-upload { background: rgba(71, 141, 245, 0.15); color: #a3c7ff; border: 2px dashed var(--primary); width: 100%; display: block; margin: 0; padding: 14px 12px; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); position: relative; z-index: 1; font-size: 14px; }
+        .file-upload-wrapper:hover .btn-upload { background: var(--primary); border-style: solid; color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(71, 141, 245, 0.4); }
+        .file-upload-wrapper:active .btn-upload { transform: translateY(1px); box-shadow: none; filter: brightness(0.9); }
 
-        .autocomplete-list { position: absolute; top: 100%; left: 0; width: 100%; background: var(--secondary); border: 1px solid var(--primary); border-radius: 4px; z-index: 2000; box-shadow: 0 4px 8px rgba(0,0,0,0.3); max-height: 150px; overflow-y: auto; display: none; }
-        .autocomplete-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 11px; }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; width: 100%; background: var(--secondary); border: 1px solid var(--primary); border-radius: 6px; z-index: 2000; box-shadow: 0 8px 16px rgba(0,0,0,0.4); max-height: 180px; overflow-y: auto; display: none; }
+        .autocomplete-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 12px; transition: background-color 0.15s ease; }
         .autocomplete-item:hover { background: var(--primary) !important; color: white; }
 
-        .leg-label { background: rgba(0, 0, 0, 0.75); border: 1px solid var(--primary); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; white-space: nowrap; pointer-events: none; }
+        .leg-label { background: rgba(0, 0, 0, 0.85); border: 1px solid var(--primary); color: white; padding: 4px 7px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.6); backdrop-filter: blur(4px); letter-spacing: 0.5px; }
+
+        .wp-label-tooltip { background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-weight: bold; padding: 2px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .leaflet-tooltip-top.wp-label-tooltip::before { border-top-color: var(--border); }
 
         /* FOOTER STYLE */
         .app-footer {
             margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
+            padding: 15px 20px;
+            background: rgba(243, 156, 18, 0.05);
+            border-left: 4px solid var(--dispatch);
+            border-radius: 4px;
             font-size: 11px;
             color: #90949c;
             line-height: 1.6;
@@ -140,7 +173,9 @@
         }
         .disclaimer-bold {
             font-weight: bold;
-            color: var(--text);
+            color: var(--dispatch);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         /* --- NEW MAP COMMAND BAR --- */
@@ -152,9 +187,10 @@
         }
 
         .cmd-group { display: flex; align-items: center; gap: 8px; position: relative; }
-        .cmd-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+        .cmd-divider { width: 2px; height: 24px; background: rgba(255, 255, 255, 0.1); margin: 0 6px; box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.2); }
+        [data-theme="light"] .cmd-divider { background: rgba(0, 0, 0, 0.1); box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.5); }
 
-        .layer-switch { display: flex; background: rgba(0,0,0,0.4); border-radius: 6px; padding: 2px; border: 1px solid var(--border); }
+        .layer-switch { display: flex; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 3px; border: 1px solid var(--border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
         .layer-btn {
             background: transparent; 
             border: none; 
@@ -163,23 +199,24 @@
             font-size: 11px; 
             font-weight: 600;
             cursor: pointer; 
-            border-radius: 4px; 
-            transition: 0.2s;
-            /* ADD THESE THREE LINES */
-            white-space: nowrap;      /* Prevents text from wrapping to a second line */
-            height: 32px;             /* Matches the height of your other action-btns */
-            display: flex;            /* Ensures vertical centering */
-            align-items: center;      /* Centers text vertically */
+            border-radius: 5px; 
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+            white-space: nowrap;
+            height: 32px;
+            display: flex;
+            align-items: center;
         }
-        .layer-btn.active { background: var(--primary); color: white; }
+        .layer-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.05); }
+        .layer-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); transform: scale(1.02); }
 
         .popover-menu {
-            position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%) scale(0.95);
             background: #1c1c1e; border: 1px solid var(--border); border-radius: 10px; padding: 10px;
-            display: none; flex-direction: column; gap: 6px; box-shadow: 0 5px 25px rgba(0,0,0,0.8);
+            display: flex; flex-direction: column; gap: 6px; box-shadow: 0 5px 25px rgba(0,0,0,0.8);
             min-width: 180px; z-index: 10000 !important;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1), transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1);
         }
-        .popover-menu.visible { display: flex; }
+        .popover-menu.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) scale(1); }
         .popover-label { font-size: 9px; color: #888; text-transform: uppercase; padding: 0 5px; font-weight: bold; margin-bottom: 2px; }
 
         .toggle-btn {
@@ -187,6 +224,7 @@
             padding: 8px 14px; font-size: 11px; border-radius: 20px; cursor: pointer; display: flex;
             align-items: center; gap: 8px; transition: 0.2s; white-space: nowrap; height: 32px; justify-content: center;
         }
+        .toggle-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--primary); }
         .popover-menu .toggle-btn { width: 100%; border-radius: 8px; justify-content: flex-start; height: auto; padding: 10px 14px; }
         .toggle-btn.active { background: rgba(71, 141, 245, 0.2); border-color: var(--primary); color: var(--primary); }
         .indicator { width: 6px; height: 6px; border-radius: 50%; background: #444; transition: 0.3s; }
@@ -195,13 +233,15 @@
         .weather-active { border-color: #2d81ff !important; color: #2d81ff !important; background: rgba(45, 129, 255, 0.15) !important; }
         .weather-active .indicator { background: #2d81ff; box-shadow: 0 0 6px #2d81ff; }
 
-        .action-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; height: 32px; display: flex; align-items: center; gap: 6px; }
+        .action-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; height: 32px; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+        .action-btn:hover { background: var(--secondary); border-color: var(--primary); }
         .close-btn { background: var(--danger); border-color: var(--danger); color: white; }
+        .close-btn:hover { background: #ff4a4a; border-color: #ff4a4a; filter: brightness(1.1); color: white; }
 
         #loader {
-            position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white;
+            position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white;
             padding: 8px 15px; border-radius: 20px; font-size: 11px; display: none; align-items: center;
-            gap: 10px; z-index: 10001; border: 1px solid var(--border);
+            gap: 10px; z-index: 10001; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
         .spinner { width: 12px; height: 12px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rotation 1s linear infinite; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -218,6 +258,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.5</b> - UI updates.<br>
         <b>v8.4.4.8</b> - .RTE file export functionality fixed.<br>
         <b>v8.4.3.5</b> - .RTE file export functionality broken...working on it.<br>
         <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
@@ -243,7 +284,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.4.4.8 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -276,30 +317,6 @@
                 <span>Session status</span>
                 <span id="local-clock">00:00:00 L | 00:00:00 Z</span>
             </div>
-            
-            <div class="status-line">
-                <span>Last action:</span> 
-                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
-                    <span id="last-action">Ready</span>
-                    <div style="width:8px;"></div>
-                </div>
-            </div>
-
-            <div class="status-line">
-                <span>Total waypoints:</span>
-                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
-                    <span id="wp-composition">0</span>
-                    <div style="width:8px;"></div>
-                </div>
-            </div>
-
-            <div class="status-line">
-                <span>Est. file size:</span>
-                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
-                    <span id="est-size">0 KB</span>
-                    <div class="status-dot ready" id="sizeDot"></div>
-                </div>
-            </div>
 
             <div class="status-line">
                 <span>System status:</span> 
@@ -325,36 +342,69 @@
                     <div class="status-dot" id="dbDot"></div>
                 </div>
             </div>
+
+            <div class="status-line" style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);">
+                <span>Total waypoints:</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="wp-composition">0</span>
+                    <div style="width:8px;"></div>
+                </div>
+            </div>
+
+            <div class="status-line">
+                <span>Est. file size:</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="est-size">0 KB</span>
+                    <div class="status-dot ready" id="sizeDot"></div>
+                </div>
+            </div>
+
+            <div class="status-line">
+                <span>Last action:</span> 
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span id="last-action">Ready</span>
+                    <div style="width:8px;"></div>
+                </div>
+            </div>
         </div>
     </div> <div style="display: flex; gap: 20px; margin-bottom: 20px;">
         <div style="flex: 1;">
             <label style="font-size: 13px; font-weight: 600;">Option A: Load file</label>
             <div class="file-upload-wrapper">
-                <button class="btn btn-upload" id="fileBtn">Choose file <span>.DAT, .RTE, .FPL, .CSV, .KML</span></button>
+                <button class="btn btn-upload" id="fileBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Choose file <span>.DAT, .RTE, .FPL, .CSV, .KML</span>
+                </button>
                 <input type="file" id="fileInput" accept=".fpl,.dat,.csv,.txt,.kml,.wpt,.xml,.rte" onchange="updateFileNameDisplay(); processFile();">
             </div>
         </div>
-        <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk paste (use with caution):</label><textarea id="bulkInput" style="width:100%; height:42px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 5px;" placeholder="Paste coordinates here..." oninput="debouncePaste()" autocorrect="off" spellcheck="false" autocapitalize="none" autocomplete="off"></textarea></div>
+        <div style="flex: 2;"><label style="font-size: 13px; font-weight: 600;">Option B: Bulk paste (use with caution):</label><textarea id="bulkInput" style="width:100%; height:75px; resize:vertical; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); padding: 8px;" placeholder="Paste coordinates here..." oninput="debouncePaste()" autocorrect="off" spellcheck="false" autocapitalize="none" autocomplete="off"></textarea></div>
     </div>
 
 <div class="action-bar" id="actionBar">
-    <button class="btn" onclick="showMap()" style="background-color: var(--earth);">Preview on map <span>STREET / SAT / AVIATION</span></button>
+    <button class="btn" onclick="showMap()" style="background-color: var(--earth);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+        Preview on map <span>STREET / SAT / AVIATION</span>
+    </button>
     
     <div class="action-divider"></div>
 
     <div style="display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
-        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);">Export user.dat <span>GENESYS WAYPOINTS</span></button>
-        <button class="btn" onclick="exportToRTE()" style="background-color: #9b59b6;">Export .RTE <span>GENESYS FLIGHT PLAN</span></button>
-        <button class="btn" onclick="validateAndExportFPL()" style="background-color: var(--foreflight);">Export .FPL <span>FOREFLIGHT ROUTE</span></button>
-        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);">Export user.wpt <span>GARMIN WAYPOINTS</span></button>
-        <button class="btn" onclick="alert('CSV Exporting...')" style="background-color: var(--dispatch);">Export .CSV <span>COMPLETE FLIGHT</span></button>
-        <button class="btn" onclick="alert('KML Exporting...')" style="background-color: #6f42c1;">Export .KML <span>GOOGLE EARTH / FOREFLIGHT</span></button>
+        <button class="btn" onclick="validateAndExportGenesys()" style="background-color: var(--success);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export user.dat <span>GENESYS WAYPOINTS</span></button>
+        <button class="btn" onclick="exportToRTE()" style="background-color: #9b59b6;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export .RTE <span>GENESYS FLIGHT PLAN</span></button>
+        <button class="btn" onclick="validateAndExportFPL()" style="background-color: var(--foreflight);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export .FPL <span>FOREFLIGHT ROUTE</span></button>
+        <button class="btn" onclick="validateAndExportGarmin()" style="background-color: var(--garmin);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export user.wpt <span>GARMIN WAYPOINTS</span></button>
+        <button class="btn" onclick="alert('CSV Exporting...')" style="background-color: var(--dispatch);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export .CSV <span>COMPLETE FLIGHT</span></button>
+        <button class="btn" onclick="alert('KML Exporting...')" style="background-color: #6f42c1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export .KML <span>GOOGLE EARTH / FOREFLIGHT</span></button>
     </div>
 
     <div class="action-divider"></div>
 
     <div style="flex-grow: 1;"></div>
-    <button class="btn btn-danger" onclick="removeAll()">CLEAR ALL DATA</button>
+    <button class="btn btn-danger" onclick="removeAll()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 4px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        CLEAR ALL DATA <span>RESET SESSION</span>
+    </button>
 </div>
     
     <table id="wpTable">
@@ -362,12 +412,12 @@
             <tr id="headerRow">
                 <th style="width: 2%;"></th> <th style="width: 2%;"></th> <th style="width: 2%;"></th> <th style="width: 3%; text-align: center;">#</th>
                 <th style="width: 10%;">Identifier</th>
-                <th style="width: 14%;">Name</th>
+                <th style="width: 25%;">Name</th>
                 <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="latHeader">Latitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
                 <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="lonHeader">Longitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
                 <th style="width: 10%;">Elevation (Ft. MSL)</th>
                 <th style="width: 12%;">Approach bearing</th>
-                <th style="width: 24%;">View waypoint in:</th>
+                <th style="width: 10%; text-align: center;">View waypoint in:</th>
             </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -1039,7 +1089,9 @@ function updateQuickLinks(r) {
     const i = r.querySelectorAll('input'); if(i.length < 4) return;
     const lat = parseCoordinate(i[2].dataset.raw || i[2].value), lon = parseCoordinate(i[3].dataset.raw || i[3].value);
     const c = r.querySelector('.quick-links');
-    if (!isNaN(lat) && lat !== 0) { c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/14" target="_blank">ForeFlight</a> <span class="separator">|</span> <a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank">Google Earth</a> <span class="separator">|</span> <a href="http://maps.google.com/maps?q=${lat},${lon}" target="_blank">Google Maps</a>`; } 
+    if (!isNaN(lat) && lat !== 0) { 
+        c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat},/16" target="_blank" title="ForeFlight" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></a><a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank" title="Google Earth" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></a><a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" title="Google Maps" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></a>`; 
+    } 
     else { c.innerHTML = ""; }
 }
 
