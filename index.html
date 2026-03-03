@@ -255,30 +255,33 @@
 <div class="modal-overlay" id="historyOverlay" onclick="toggleVersionHistory()">
     <div id="versionHistory" onclick="event.stopPropagation()">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:10px;">
-            <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
+            <strong style="color:var(--primary); font-size:14px;">Version history</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
-        <b>v8.5.1</b> - Fixed bug where user.dat file did not include last waypoint in table.<br>
-        <b>v8.5.1</b> - Fixed bug where user.dat file did not include waypoint elevation.<br>
-        <b>v8.5</b> - UI updates.<br>
-        <b>v8.4.4.8</b> - .RTE file export functionality fixed.<br>
-        <b>v8.4.3.5</b> - .RTE file export functionality broken...working on it.<br>
-        <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
-        <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
-        <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
-        <b>v8.4.3.1</b> - Fixed drop up menus. Fixed weather overlays.<br>
-        <b>v8.4.3</b> - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.<br>
-        <b>v8.4.2.1</b> - STABLE: Restored Input fields. Fixed Footer layout. Restored new Purpose text. Added Year to AIRAC.<br>
-        <b>v8.4.2</b> - UI UPDATE: Added back rolling sections to timestamp. Updated waypoint tally totals.<br>
-        <b>v8.4.1</b> - UI UPDATE: Added Dual-Time (Local/Zulu), explicit AIRAC Cycle display, and real-time database verification timestamp.<br>
-        <b>v8.4</b> - STABLE RELEASE: Integrated forensic binary engine for .RTE flight plans (11,752 byte container).<br>
-        <b>v8.3.1.8</b> - FIXED: Rewrote .RTE Exporter with "Golden Master" logic (Flags, Leg Shifts, and CRC-32).<br>
-        <b>v8.3.1.7</b> - LOGIC PATCH: Smart disambiguation for duplicate IDs. 3-letter inputs prioritize NAVAIDs; 4-letter (K/P) prioritize Airports.<br>
-        <b>v8.3.1.6</b> - SELF-HEALING: Added automated database corruption check and manual reset option.<br>
-        <b>v8.3.1.5</b> - CRITICAL FIX: Forced schema upgrade to v2 to enable search indexing.<br>
-        <b>v8.3.1.4</b> - DB Architecture Upgrade (v2): Enabled duplicate identifiers (Airport/NAVAID separation) and smart prioritization.<br>
-        <b>v8.3.1.3</b> - UI Logic Fix: Identifier field now preserves user input (e.g., K-prefixes) and re-search forces row update on edit.<br>
-        <b>v8.3</b> - STABLE RELEASE: Transitioned out of beta. Locked functional baseline.<br>
+        
+        <div style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">
+            <b>v8.5.2</b> - Bug fix: Exported user.dat now includes last waypoint in table.<br>
+            <b>v8.5.1</b> - Bug fix:  User.dat file now includes waypoint elevation.<br>
+            <b>v8.5</b> - UI updates.<br>
+            <b>v8.4.4.8</b> - .RTE file export functionality fixed.<br>
+            <b>v8.4.3.5</b> - .RTE file export functionality broken...working on it.<br>
+            <b>v8.4.3.4</b> - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.<br>
+            <b>v8.4.3.3</b> - Minor visual updates to action bar.<br>
+            <b>v8.4.3.2</b> - Added dark basemap as default selection.<br>
+            <b>v8.4.3.1</b> - Fixed drop up menus. Fixed weather overlays.<br>
+            <b>v8.4.3</b> - INTEGRATION: Added New Map Command Bar with FAA Charts & Weather Overlays.<br>
+            <b>v8.4.2.1</b> - STABLE: Restored Input fields. Fixed Footer layout. Restored new Purpose text. Added Year to AIRAC.<br>
+            <b>v8.4.2</b> - UI UPDATE: Added back rolling sections to timestamp. Updated waypoint tally totals.<br>
+            <b>v8.4.1</b> - UI UPDATE: Added Dual-Time (Local/Zulu), explicit AIRAC Cycle display, and real-time database verification timestamp.<br>
+            <b>v8.4</b> - STABLE RELEASE: Integrated forensic binary engine for .RTE flight plans (11,752 byte container).<br>
+            <b>v8.3.1.8</b> - FIXED: Rewrote .RTE Exporter with "Golden Master" logic (Flags, Leg Shifts, and CRC-32).<br>
+            <b>v8.3.1.7</b> - LOGIC PATCH: Smart disambiguation for duplicate IDs. 3-letter inputs prioritize NAVAIDs; 4-letter (K/P) prioritize Airports.<br>
+            <b>v8.3.1.6</b> - SELF-HEALING: Added automated database corruption check and manual reset option.<br>
+            <b>v8.3.1.5</b> - CRITICAL FIX: Forced schema upgrade to v2 to enable search indexing.<br>
+            <b>v8.3.1.4</b> - DB Architecture Upgrade (v2): Enabled duplicate identifiers (Airport/NAVAID separation) and smart prioritization.<br>
+            <b>v8.3.1.3</b> - UI Logic Fix: Identifier field now preserves user input (e.g., K-prefixes) and re-search forces row update on edit.<br>
+            <b>v8.3</b> - STABLE RELEASE: Transitioned out of beta. Locked functional baseline.<br>
+        </div>
     </div>
 </div>
 
