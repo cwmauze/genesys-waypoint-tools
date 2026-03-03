@@ -258,6 +258,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.5.1</b> - Fixed bug where user.dat file did not include waypoint elevation.<br>
         <b>v8.5</b> - UI updates.<br>
         <b>v8.4.4.8</b> - .RTE file export functionality fixed.<br>
         <b>v8.4.3.5</b> - .RTE file export functionality broken...working on it.<br>
@@ -284,7 +285,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5.1 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1086,13 +1087,13 @@ function applyDataToRow(res, inps, row, forceOverride = false) {
 }
 
 function updateQuickLinks(r) {
-    const i = r.querySelectorAll('input'); if(i.length < 4) return;
-    const lat = parseCoordinate(i[2].dataset.raw || i[2].value), lon = parseCoordinate(i[3].dataset.raw || i[3].value);
-    const c = r.querySelector('.quick-links');
-    if (!isNaN(lat) && lat !== 0) { 
-        c.innerHTML = `<a href="https://plan.foreflight.com/map#${lat}/${lon}/16" target="_blank" title="ForeFlight" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></a><a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank" title="Google Earth" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></a><a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" title="Google Maps" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></a>`; 
-    } 
-    else { c.innerHTML = ""; }
+    const i = r.querySelectorAll('input'); if(i.length < 4) return;
+    const lat = parseCoordinate(i[2].dataset.raw || i[2].value), lon = parseCoordinate(i[3].dataset.raw || i[3].value);
+    const c = r.querySelector('.quick-links');
+    if (!isNaN(lat) && lat !== 0) { 
+        c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/16" target="_blank" rel="noopener noreferrer" title="ForeFlight" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></a><a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank" rel="noopener noreferrer" title="Google Earth" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></a><a href="https://www.google.com/maps/search/?api=1&query=$${lat},${lon}" target="_blank" rel="noopener noreferrer" title="Google Maps" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></a>`; 
+    } 
+    else { c.innerHTML = ""; }
 }
 
 function parseCoordinate(i) {
@@ -1542,14 +1543,49 @@ function validateAndExportGenesys() {
     const rows = [...tbody.querySelectorAll('tr')], headerHex = "9a01000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a00000000000004728a3b76555424027eadf08657853c0";
     let bytes = []; let hBuf = new ArrayBuffer(HEADER_SIZE), hView = new DataView(hBuf); hView.setUint32(0, rows.length, true);
     for(let k=0; k<HEADER_SIZE; k++) bytes.push(k<4 ? hView.getUint8(k) : parseInt(headerHex.substr(k*2,2), 16));
+
+    // Track vertical data for the required Shift Logic
+    let prevElev = 0;
+    let prevBrg = 0;
+
     rows.forEach(r => {
-        const inp = r.querySelectorAll('input'); const lat = parseCoordinate(inp[2].dataset.raw || inp[2].value), lon = parseCoordinate(inp[3].dataset.raw || inp[3].value);
+        const inp = r.querySelectorAll('input'); 
+        const lat = parseCoordinate(inp[2].dataset.raw || inp[2].value);
+        const lon = parseCoordinate(inp[3].dataset.raw || inp[3].value);
+        
+        // Extract vertical data
+        const elev = parseInt(inp[4].value) || 0;
+        const brg = parseInt(inp[5].value) || 0;
+
         let buf = new ArrayBuffer(RECORD_SIZE), v = new DataView(buf);
+        
+        // Shift Logic: Apply previous waypoint's vertical data to offsets 0 and 16
+        v.setUint32(0, prevElev, true);
+        v.setUint16(16, prevBrg, true);
+
         for(let j=0; j<9; j++) v.setUint8(24+j, (j<inp[0].value.length)?inp[0].value.charCodeAt(j):0);
         for(let j=0; j<23; j++) v.setUint8(33+j, (j<inp[1].value.length)?inp[1].value.charCodeAt(j):0);
-        v.setFloat64(72, parseFloat(lat), true); v.setFloat64(80, parseFloat(lon), true);
+        
+        // Apply Magic Byte at Offset 64
+        v.setUint8(64, 0x0A);
+
+        v.setFloat64(72, parseFloat(lat), true); 
+        v.setFloat64(80, parseFloat(lon), true);
+        
         for(let k=0; k<RECORD_SIZE; k++) bytes.push(v.getUint8(k));
+
+        // Store current values for the next iteration
+        prevElev = elev;
+        prevBrg = brg;
     });
+
+    // Generate the mandatory final Dummy Record to house the last waypoint's vertical data
+    let dummyBuf = new ArrayBuffer(RECORD_SIZE), dummyView = new DataView(dummyBuf);
+    dummyView.setUint32(0, prevElev, true);
+    dummyView.setUint16(16, prevBrg, true);
+    dummyView.setUint8(64, 0x0A); 
+    for(let k=0; k<RECORD_SIZE; k++) bytes.push(dummyView.getUint8(k));
+
     while(bytes.length < TARGET_FILE_SIZE - 8) bytes.push(0);
     const table = makeCRCTable(); let crc = 0xFFFFFFFF; for(let i=0; i<bytes.length; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
     crc = (crc ^ 0xFFFFFFFF) >>> 0; let cBuf = new ArrayBuffer(4), cView = new DataView(cBuf); cView.setUint32(0, crc, true);
