@@ -260,6 +260,7 @@
         </div>
         
         <div style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">
+        	<b>v8.6</b> - Added elevation auto-fill.<br>
         	<b>v8.5.3</b> - UI tweak: Changed default preview map layer, separated light/dark map toggle.<br>
             <b>v8.5.2</b> - Bug fix: Exported user.dat now includes last waypoint in table.<br>
             <b>v8.5.1</b> - Bug fix:  User.dat file now includes waypoint elevation.<br>
@@ -290,7 +291,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5.3 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.6 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -421,7 +422,7 @@
                 <th style="width: 25%;">Name</th>
                 <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="latHeader">Latitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
                 <th style="width: 12%;" class="clickable-header" onclick="rotateCoordFormat()" id="lonHeader">Longitude (DD)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to rotate format</span></th>
-                <th style="width: 10%;">Elevation (Ft. MSL)</th>
+                <th style="width: 10%;" class="clickable-header" onclick="autoFillElevations()" id="elevHeader">Elevation (Ft. MSL)<br><span style="font-size: 8px; font-weight: normal; opacity: 0.7; display: block; margin-top: 2px;">Click to auto-fill</span></th>
                 <th style="width: 12%;">Approach bearing</th>
                 <th style="width: 10%; text-align: center;">View waypoint in:</th>
             </tr>
@@ -1522,6 +1523,62 @@ function hideMap() { document.getElementById('mapOverlay').style.display = 'none
 function initStickyObserver() {
     const observer = new ResizeObserver(entries => { const h = entries[0].target.offsetHeight; document.querySelectorAll('#tableHeader th').forEach(th => th.style.top = h + 'px'); });
     observer.observe(document.getElementById('actionBar'));
+}
+
+/* --- AUTO-FILL ELEVATION ENGINE --- */
+async function autoFillElevations() {
+    const rows = [...tbody.querySelectorAll('tr')];
+    let fetchedCount = 0;
+    
+    // Trigger existing loader UI
+    const loader = document.getElementById('loader');
+    loader.style.display = 'flex';
+    loader.innerHTML = '<span class="spinner"></span> FETCHING ELEVATIONS...';
+
+    for (const r of rows) {
+        const inps = r.querySelectorAll('input');
+        const elevInput = inps[4];
+        
+        // Only target rows with missing or zeroed elevations
+        if (!elevInput.value || elevInput.value === '0') {
+            const lat = parseCoordinate(inps[2].dataset.raw || inps[2].value);
+            const lon = parseCoordinate(inps[3].dataset.raw || inps[3].value);
+            
+            if (lat && lon && lat !== "0.000000" && lon !== "0.000000") {
+                try {
+                    // Global API - returns meters
+                    const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.elevation && data.elevation.length > 0) {
+                            // Convert to Feet MSL and round
+                            const elevFt = Math.round(data.elevation[0] * 3.28084);
+                            elevInput.value = elevFt > -1000 ? elevFt : 0;
+                            elevInput.style.backgroundColor = "rgba(40, 167, 69, 0.15)"; // Soft green success highlight
+                            fetchedCount++;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Elevation fetch failed for row", e);
+                }
+                // 150ms delay to prevent API rate-limiting on large files
+                await new Promise(resolve => setTimeout(resolve, 150)); 
+            }
+        }
+    }
+    
+    // Reset loader and save state
+    loader.innerHTML = '<span class="spinner"></span> FETCHING DATA...';
+    loader.style.display = 'none';
+    
+    saveSession();
+    checkGlobalHealth();
+    
+    if (fetchedCount > 0) {
+        logAction(`Auto-filled ${fetchedCount} elevations`);
+    } else {
+        alert("No missing elevations found, or fetch failed.");
+    }
 }
 
 /* ---------------------------------------------------------
