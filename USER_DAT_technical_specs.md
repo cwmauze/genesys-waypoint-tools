@@ -24,7 +24,7 @@ The header acts as the "Boot Sector" for the waypoint database. It requires a sp
 
 | Offset | Size | Type | Value / Description |
 | :--- | :--- | :--- | :--- |
-| 0 | 4 | `Uint32` | **Waypoint Count:** Total active waypoints. |
+| 0 | 4 | Uint32 | Record Count: Total active waypoints + 1 (Must include the mandatory Dummy Record).
 | 4 | 68 | `Hex` | **Signature:** `9a01000000000000...` (See Appendix A). |
 
 ---
