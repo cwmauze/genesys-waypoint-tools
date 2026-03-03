@@ -1,6 +1,6 @@
 # 🛠 Technical Specifications: Genesys IDU `user.dat` Binary Architecture
 
-**Version:** 2.0 (Hardware-Native Verified)
+**Version:** 2.1 (Hardware-Native Verified)
 **Date:** January 25, 2026
 **Applicability:** Genesys Aerosystems IDU-450, IDU-680, and IDU PC Trainer.
 
