@@ -260,6 +260,7 @@
         </div>
         
         <div style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">
+        	<b>v8.5.3</b> - UI tweak: Changed default preview map layer, separated light/dark map toggle.<br>
             <b>v8.5.2</b> - Bug fix: Exported user.dat now includes last waypoint in table.<br>
             <b>v8.5.1</b> - Bug fix:  User.dat file now includes waypoint elevation.<br>
             <b>v8.5</b> - UI updates.<br>
@@ -289,7 +290,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5.2 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5.3 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -438,7 +439,8 @@
         <div class="map-command-bar">
             <div class="cmd-group">
                 <div class="layer-switch">
-              		<button class="layer-btn active" id="b-street" onclick="toggleMapStyle()">Map (Dark)</button>
+                    <button class="layer-btn active" id="b-street" onclick="setBaseView('street')">Map (Light)</button>
+                    <button class="layer-btn" id="b-dark" onclick="setBaseView('dark')">Map (Dark)</button>
                     <button class="layer-btn" id="b-sat" onclick="setBaseView('sat')">Sat</button>
                     <button class="layer-btn" id="chartMainBtn" onclick="toggleMenu('chartMenu')">Chart</button>
                 </div>
@@ -446,7 +448,7 @@
             <div class="cmd-divider"></div>
             <div class="cmd-group">
                 <button class="toggle-btn active" id="btn-ids" onclick="toggleOverlay('ids')"><div class="indicator"></div> IDs</button>
-                <button class="toggle-btn active" id="btn-route" onclick="toggleOverlay('route')"><div class="indicator"></div> Route</button>
+                <button class="toggle-btn" id="btn-route" onclick="toggleOverlay('route')"><div class="indicator"></div> Route</button>
                 <button class="toggle-btn" id="btn-legs" onclick="toggleOverlay('legs')"><div class="indicator"></div> Legs</button>
                 <div class="cmd-divider"></div>
                 <button class="toggle-btn" id="wxMainBtn" onclick="toggleMenu('wxMenu')"><div class="indicator"></div> Weather</button>
@@ -489,7 +491,7 @@ const RECORD_SIZE = 88, HEADER_SIZE = 72, TARGET_FILE_SIZE = 88016;
 let leafletMap = null, markerLayer = null, routeLayer = null, labelLayer = null, idLayer = null, pasteTimer, draggedRow = null, dbReady = false; 
 let lastLoadedExtension = '', coordDisplayMode = 0; 
 let layers = {}; // Global layers object for the new UI
-let activeBase = 'dark', activeChart = null; // Global state for the new UI
+let activeBase = 'street', activeChart = null; // Global state for the new UI
 
 const FAA_DB_NAME = "FAANavData", FAA_STORE_NAME = "waypoints", tbody = document.getElementById('table-body');
 
@@ -1132,11 +1134,11 @@ function showMap() {
         
         // 2. Define Layers
         layers = {
-            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap), // Light is default
             dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '© CartoDB', 
                 maxZoom: 20
-            }).addTo(leafletMap), // Dark is default
+            }),
             sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
             vfr: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
             lo: L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/IFR_AreaLow/MapServer/tile/{z}/{y}/{x}', {maxZoom: 12}),
@@ -1148,11 +1150,18 @@ function showMap() {
         };
 
         // 3. Initialize Global Overlay Groups
-        activeBase = 'dark';
+        activeBase = 'street';
         markerLayer = L.layerGroup().addTo(leafletMap); 
-        routeLayer = L.polyline([], {color: 'magenta', weight: 4}).addTo(leafletMap); 
+        
+        // BUG FIX: Sync layers with their button states instead of force-adding them
+        routeLayer = L.polyline([], {color: 'magenta', weight: 4});
+        if (document.getElementById('btn-route').classList.contains('active')) routeLayer.addTo(leafletMap);
+        
         labelLayer = L.layerGroup();
-        idLayer = L.layerGroup().addTo(leafletMap); // IDs (Added by default, toggled separately)
+        if (document.getElementById('btn-legs').classList.contains('active')) labelLayer.addTo(leafletMap);
+        
+        idLayer = L.layerGroup();
+        if (document.getElementById('btn-ids').classList.contains('active')) idLayer.addTo(leafletMap);
 
         // 4. Bind Click-Away Listener
         leafletMap.on('click', () => document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible')));
@@ -1203,39 +1212,14 @@ function setBaseView(type) {
     layers[type].addTo(leafletMap).bringToBack();
     activeBase = type;
 
-    // 3. Update UI & Button Text
+    // 3. Update UI
     document.querySelectorAll('.layer-switch .layer-btn').forEach(b => b.classList.remove('active'));
-    const mapBtn = document.getElementById('b-street');
-
-    if (type === 'dark') {
-        mapBtn.classList.add('active');
-        mapBtn.innerText = "Map (Dark)";
-    } else if (type === 'street') {
-        mapBtn.classList.add('active');
-        mapBtn.innerText = "Map (Light)";
-    } else {
-        // Satellite mode
-        document.getElementById('b-' + type).classList.add('active');
-        mapBtn.innerText = "Map"; // Reset to generic if we are on Satellite
-    }
+    
+    // Dynamically highlight the clicked button
+    const btn = document.getElementById('b-' + type);
+    if (btn) btn.classList.add('active');
 
     document.querySelectorAll('.popover-menu').forEach(m => m.classList.remove('visible'));
-}
-
-// SMART TOGGLE: Cycles between Street -> Dark -> Street
-function toggleMapStyle() {
-    // 1. If we are currently on Satellite, go to Dark (Default) first
-    if (activeBase === 'sat' || !activeBase) {
-        setBaseView('dark');
-        return;
-    }
-
-    // 2. Cycle logic
-    if (activeBase === 'street') {
-        setBaseView('dark');
-    } else {
-        setBaseView('street');
-    }
 }
 
 // CHART SELECTOR
