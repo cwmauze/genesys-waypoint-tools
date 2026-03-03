@@ -258,6 +258,7 @@
             <strong style="color:var(--primary); font-size:14px;">Rolling Version History</strong>
             <span style="cursor:pointer; font-size:18px; opacity:0.7;" onclick="toggleVersionHistory()">✕</span>
         </div>
+        <b>v8.5.1</b> - Fixed bug where user.dat file did not include last waypoint in table.<br>
         <b>v8.5.1</b> - Fixed bug where user.dat file did not include waypoint elevation.<br>
         <b>v8.5</b> - UI updates.<br>
         <b>v8.4.4.8</b> - .RTE file export functionality fixed.<br>
@@ -285,7 +286,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5.1 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.5.2 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1541,7 +1542,7 @@ function initStickyObserver() {
    --------------------------------------------------------- */
 function validateAndExportGenesys() {
     const rows = [...tbody.querySelectorAll('tr')], headerHex = "9a01000000000000000000002000000000000000002000000000000000000000000000000000000000000000000000000a00000000000004728a3b76555424027eadf08657853c0";
-    let bytes = []; let hBuf = new ArrayBuffer(HEADER_SIZE), hView = new DataView(hBuf); hView.setUint32(0, rows.length, true);
+    let bytes = []; let hBuf = new ArrayBuffer(HEADER_SIZE), hView = new DataView(hBuf); hView.setUint32(0, rows.length + 1, true);
     for(let k=0; k<HEADER_SIZE; k++) bytes.push(k<4 ? hView.getUint8(k) : parseInt(headerHex.substr(k*2,2), 16));
 
     // Track vertical data for the required Shift Logic
