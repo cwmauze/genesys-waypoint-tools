@@ -260,6 +260,7 @@
         </div>
         
         <div style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">
+        	<b>v8.6.1</b> - Fixed Google Maps quick links.<br>
         	<b>v8.6</b> - Added elevation auto-fill.<br>
         	<b>v8.5.3</b> - UI tweak: Changed default preview map layer, separated light/dark map toggle.<br>
             <b>v8.5.2</b> - Bug fix: Exported user.dat now includes last waypoint in table.<br>
@@ -291,7 +292,7 @@
     <div class="header-row">
         <div>
             <h2>Genesys IDU Waypoint and Route Tools</h2>
-            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.6 (stable)</span>
+            <span class="version-subtitle" onclick="toggleVersionHistory()">v8.6.1 (stable)</span>
             <a href="https://github.com/cwmauze/genesys-waypoint-tools" target="_blank" class="project-link">GitHub Project Home</a>
             <a href="mailto:cistern_fob3m@icloud.com" class="contact-link">Contact / Feedback</a>
         </div>
@@ -1098,7 +1099,7 @@ function updateQuickLinks(r) {
     const lat = parseCoordinate(i[2].dataset.raw || i[2].value), lon = parseCoordinate(i[3].dataset.raw || i[3].value);
     const c = r.querySelector('.quick-links');
     if (!isNaN(lat) && lat !== 0) { 
-        c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/16" target="_blank" rel="noopener noreferrer" title="ForeFlight" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></a><a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank" rel="noopener noreferrer" title="Google Earth" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></a><a href="https://www.google.com/maps/search/?api=1&query=$${lat},${lon}" target="_blank" rel="noopener noreferrer" title="Google Maps" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></a>`; 
+        c.innerHTML = `<a href="https://plan.foreflight.com/map#${lon}/${lat}/16" target="_blank" rel="noopener noreferrer" title="ForeFlight" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></a><a href="https://earth.google.com/web/search/${lat},${lon}" target="_blank" rel="noopener noreferrer" title="Google Earth" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></a><a href="https://maps.google.com/maps?q=${lat},${lon}" target="_blank" rel="noopener noreferrer" title="Google Maps" class="ql-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></a>`; 
     } 
     else { c.innerHTML = ""; }
 }
