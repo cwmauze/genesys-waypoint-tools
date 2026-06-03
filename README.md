@@ -19,6 +19,13 @@ While other vendors (e.g. Garmin) make data entry really easy (they just use a .
 ## Technical Specifications
 For a deep dive into the engineering behind this tool, refer to the included technical documentation.
 
+## Architecture
+To ensure stability and scalability, the application is divided into a modular structure:
+- **`index.html`**: Core application markup and UI structure.
+- **`css/style.css`**: Scalable stylesheet managing the user interface.
+- **`js/app.js`**: DOM management, file handling, map logic, and Garmin/FPL exports.
+- **`js/genesys-binary-engine.js`**: Isolated, strict binary math engine. This file contains the "holy grail" of reverse-engineered `.RTE` and `.DAT` format offsets, CRC-32 checksum generation, and padding logic. It is firewalled from UI changes to prevent data corruption.
+
 ## Features
 ### Mission Planning & Editing
 * **Visual Route Editor:** Drag-and-drop functionality allows you to re-sequence waypoints visually. No more spreadsheet row cutting-and-pasting.
@@ -31,6 +38,7 @@ For a deep dive into the engineering behind this tool, refer to the included tec
 * **Cross-Verification:** One-click links to Google Maps, Google Earth, and ForeFlight Web to verify coordinates before they ever reach the aircraft.
 
 ## Version History
+* **v9.0:** - MAJOR UPDATE: Transitioned to scalable modular architecture. Separated core UI logic from avionics binary engine. Established GitHub Actions CI/CD.
 * **v8.4.4.8:** - .RTE file export functionality fixed.
 * **v8.4.3.5:** - .RTE file export functionality broken...working on it.
 * **v8.4.3.4:** - UI FIX: Separated Waypoint IDs from Markers. Auto-toggle 'Legs' overlay for Routes vs. Waypoints.
