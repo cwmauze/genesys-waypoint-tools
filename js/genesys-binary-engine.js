@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------------------------------------
-   GENESYS IDU .RTE & .DAT FILE ENGINE (v9.0 STABLE)
+   GENESYS IDU .RTE & .DAT FILE ENGINE (v9.0.1 STABLE)
    Forensic binary structure for S-TEC/Genesys Avionics
    DO NOT MODIFY THE CONSTANTS, OFFSETS, OR CRC MATH BELOW.
 ------------------------------------------------------------------------------------------------ */
