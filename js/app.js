@@ -520,7 +520,7 @@ function showMap() {
         // 2. Define Layers
         layers = {
             street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap), // Light is default
-            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_28w2_1_ba47a6ce5b12802de8cddc3b', {
                 attribution: '© CartoDB', 
                 maxZoom: 20
             }),
